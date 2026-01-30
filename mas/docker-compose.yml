@@ -1,0 +1,9 @@
+services:
+  mas:
+    image: ghcr.io/element-hq/matrix-authentication-service:latest
+    environment:
+      - MAS_DATABASE_URL=${DATABASE_URL}
+      - MAS_SERVER_NAME=${SERVER_NAME}
+      - MAS_SHARED_SECRET=${MAS_SHARED_SECRET}
+    ports:
+      - 8080:8080
