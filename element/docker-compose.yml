@@ -1,0 +1,7 @@
+services:
+  element:
+    image: vectorim/element-web:latest
+    environment:
+      - ELEMENT_CONFIG={"default_server_config":{"m.homeserver":{"base_url":"https://${SERVER_NAME}","server_name":"${SERVER_NAME}"}}}
+    ports:
+      - 80:80
