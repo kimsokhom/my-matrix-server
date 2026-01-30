@@ -1,0 +1,20 @@
+server_name: "${SERVER_NAME}"
+pid_file: /data/homeserver.pid
+presence:
+  enabled: true
+database:
+  name: psycopg2
+  args:
+    url: "${DATABASE_URL}" # Railway provides this automatically
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    resources:
+      - names: [client, federation]
+# Authentication via MAS
+macaroon_secret_key: "${MACAROON_KEY}"
+registration_shared_secret: "${MAS_SHARED_SECRET}"
+# This tells Synapse to trust your MAS service for logins
+external_cache:
+  host: localhost # We will update this later
