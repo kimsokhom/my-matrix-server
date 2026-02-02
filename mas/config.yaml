@@ -13,23 +13,23 @@ http:
         - address: "[::]:8008"
 
 database:
-  uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+  uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway/railway"
 
 secrets:
-  encryption: "${MAS_ENCRYPTION_SECRET}"
+  encryption: "Q7M9aKxF2L8ZB5P3D1tH0V6U4EJWRcNSmY"
   keys:
     - kid: "primary"
-      key: "${MAS_SIGNING_KEY}"
+      key: "i3+dscLzIOzXiLlrqoENwWkEs6oAdCDuAPgIze9/UBM="
 
 matrix:
   homeserver: "https://synapse-production-e1f9.up.railway.app"
-  secret: "${MAS_SHARED_SECRET}"
+  secret: "JkD92LsKp0Q7A3xM"
   endpoint: "https://synapse-production-e1f9.up.railway.app"
 
 clients:
   - client_id: "synapse"
     client_auth_method: "client_secret_basic"
-    client_secret: "${MAS_SHARED_SECRET}"
+    client_secret: "JkD92LsKp0Q7A3xM"
 
 templates:
   path: /usr/local/share/mas-cli/templates
