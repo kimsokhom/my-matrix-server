@@ -7,7 +7,7 @@ FROM matrixdotorg/synapse:latest
 # 2️⃣ Copy your custom homeserver.yaml into the image.
 #    Synapse expects the config at /data/homeserver.yaml
 # -------------------------------------------------
-COPY homeserver.yaml /data/homeserver.yaml
+COPY homeserver.yaml /etc/synapse/homeserver.yaml
 
 # -------------------------------------------------
 # 3️⃣ (Optional) Install extra Python packages or plugins.
