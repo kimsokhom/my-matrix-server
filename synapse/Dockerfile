@@ -1,19 +1,17 @@
 FROM matrixdotorg/synapse:latest
 
-# Copy your config to a temp location
+# Copy your config
 COPY homeserver.yaml /homeserver.yaml
 
-# Create a proper wrapper script that calls the original entrypoint
+# Create wrapper that forces config copy and starts Synapse directly
 RUN echo '#!/bin/bash\n\
 set -e\n\
-# Copy config to the expected location\n\
+echo "Copying custom config to /data/homeserver.yaml"\n\
 cp -f /homeserver.yaml /data/homeserver.yaml\n\
-# Call the original Synapse start script with the original entrypoint\n\
-exec /start.py run' > /custom-start.sh && \
+echo "Starting Synapse..."\n\
+exec python -m synapse.app.homeserver --config-path=/data/homeserver.yaml' > /custom-start.sh && \
     chmod +x /custom-start.sh
 
 EXPOSE 8008
 
-# Use sh as entrypoint to run our script
-ENTRYPOINT ["/bin/sh"]
-CMD ["/custom-start.sh"]
+ENTRYPOINT ["/custom-start.sh"]
