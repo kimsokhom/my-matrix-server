@@ -17,9 +17,6 @@ database:
 
 secrets:
   encryption: "8f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a2918"
-  keys:
-    - kid: "primary"
-      key: "i3+dscLzIOzXiLlrqoENwWkEs6oAdCDuAPgIze9/UBM="
 
 matrix:
   homeserver: "https://synapse-production-e1f9.up.railway.app"
