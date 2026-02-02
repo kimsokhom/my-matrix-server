@@ -22,7 +22,7 @@ secrets:
       key: "${MAS_SIGNING_KEY}"
 
 matrix:
-  homeserver: "${SYNAPSE_URL}"
+  homeserver: "https://synapse-production-e1f9.up.railway.app"
   secret: "${MAS_SHARED_SECRET}"
   endpoint: "${SYNAPSE_URL}"
 
