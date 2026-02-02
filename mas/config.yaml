@@ -1,5 +1,5 @@
 http:
-  public_base: "${MAS_PUBLIC_URL}"
+  public_base: "https://mas-production-9d06.up.railway.app/"
   listeners:
     - name: web
       resources:
