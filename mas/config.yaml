@@ -16,7 +16,7 @@ database:
   uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway/railway"
 
 secrets:
-  encryption: "Q7M9aKxF2L8ZB5P3D1tH0V6U4EJWRcNSmY"
+  encryption: "8f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a2918"
   keys:
     - kid: "primary"
       key: "i3+dscLzIOzXiLlrqoENwWkEs6oAdCDuAPgIze9/UBM="
