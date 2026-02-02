@@ -1,7 +1,12 @@
 FROM matrixdotorg/synapse:latest
 
-# Copy the custom config to a location that will NOT be overwritten
-COPY homeserver.yaml /data/homeserver.yaml
+# Copy config to a temporary location
+COPY homeserver.yaml /tmp/homeserver.yaml
+
+# Create entrypoint script that copies config and starts Synapse
+RUN echo '#!/bin/sh\ncp /tmp/homeserver.yaml /data/homeserver.yaml\nexec python -m synapse.app.homeserver --config-path /data/homeserver.yaml' > /start.sh && \
+    chmod +x /start.sh
 
 EXPOSE 8008
-# No CMD needed – the upstream image already defines the entrypoint
+
+ENTRYPOINT ["/start.sh"]
