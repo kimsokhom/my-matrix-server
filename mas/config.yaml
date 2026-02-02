@@ -1,4 +1,5 @@
 http:
+  public_base: "${MAS_PUBLIC_URL}"
   listeners:
     - name: web
       resources:
