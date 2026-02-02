@@ -24,7 +24,7 @@ secrets:
 matrix:
   homeserver: "https://synapse-production-e1f9.up.railway.app"
   secret: "${MAS_SHARED_SECRET}"
-  endpoint: "${SYNAPSE_URL}"
+  endpoint: "https://synapse-production-e1f9.up.railway.app"
 
 clients:
   - client_id: "synapse"
