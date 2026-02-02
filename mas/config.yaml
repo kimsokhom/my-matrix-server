@@ -10,7 +10,7 @@ http:
         - name: graphql
         - name: assets
       binds:
-        - address: "[::]:8008"
+        - address: "0.0.0.0:8008"
 
 database:
   uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway"
