@@ -27,7 +27,7 @@ matrix:
   endpoint: "https://synapse-production-e1f9.up.railway.app"
 
 clients:
-  - client_id: "01JKM8XQNP7YZABCDEFGHJ123"
+  - client_id: "01JKMN2QRSTUVWXYZ0123456789"
     client_auth_method: "client_secret_basic"
     client_secret: "JkD92LsKp0Q7A3xM"
 
