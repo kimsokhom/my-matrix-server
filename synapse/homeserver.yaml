@@ -3,7 +3,7 @@ public_baseurl: "https://synapse-production-e1f9.up.railway.app/"
 
 listeners:
   - port: 8008
-    bind_addresses: ['0.0.0.0']
+    bind_addresses: ["0.0.0.0"]
     type: http
     tls: false
     resources:
@@ -12,14 +12,14 @@ listeners:
 database:
   name: psycopg2
   args:
-    user: "${POSTGRES_USER}"
-    password: "${POSTGRES_PASSWORD}"
-    host: "${POSTGRES_HOST}"
-    database: "${POSTGRES_DB}"
-    port: ${POSTGRES_PORT}
+    user: "postgres"
+    password: "BjUtajUuXkRKPnugsQzZULGUxdijseLX"
+    host: "postgres.railway.internal"
+    database: "railway"
+    port: 5432
 
-macaroon_secret_key: "${MACAROON_KEY}"
-registration_shared_secret: "${MAS_SHARED_SECRET}"
+macaroon_secret_key: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
+registration_shared_secret: "JkD92LsKp0Q7A3xM"
 
 trusted_third_party_id_servers:
   - "mas-production-9d06.up.railway.app"
