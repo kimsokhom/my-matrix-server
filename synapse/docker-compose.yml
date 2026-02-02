@@ -2,8 +2,11 @@ version: "3.9"
 
 services:
   synapse:
-    image: matrixdotorg/synapse:latest
-    ports: ["8008:8008"]
+    build:
+      context: ./synapse          # <-- points to the folder with Dockerfile + yaml
+      dockerfile: Dockerfile
+    ports:
+      - "8008:8008"
     restart: unless-stopped
     environment:
       POSTGRES_HOST: ${POSTGRES_HOST}
@@ -15,8 +18,8 @@ services:
       MACAROON_KEY: ${MACAROON_KEY}
       SERVER_NAME: ${SERVER_NAME}
     volumes:
-      - synapse-data:/data
-      - ./homeserver.yaml:/data/homeserver.yaml:ro
+      - synapse-data:/data        # persistent DB, media, etc.
+    # No need to mount homeserver.yaml – it’s baked in.
 
 volumes:
   synapse-data:
