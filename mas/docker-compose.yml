@@ -5,12 +5,16 @@ services:
     image: ghcr.io/element-hq/matrix-authentication-service:latest
     ports: ["8008:8008"]
     restart: unless-stopped
+    volumes:
+      - ./config.yaml:/config.yaml:ro
     environment:
+      MAS_CONFIG: /config.yaml
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      MAS_SERVER_NAME: ${SERVER_NAME}
+      SYNAPSE_URL: ${SYNAPSE_URL}
       MAS_SHARED_SECRET: ${MAS_SHARED_SECRET}
-      MAS_LOG_LEVEL: info
+      MAS_ENCRYPTION_SECRET: ${MAS_ENCRYPTION_SECRET}
+      MAS_SIGNING_KEY: ${MAS_SIGNING_KEY}

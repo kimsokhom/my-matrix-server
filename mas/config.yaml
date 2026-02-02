@@ -1,0 +1,38 @@
+http:
+  listeners:
+    - name: web
+      resources:
+        - name: discovery
+        - name: human
+        - name: oauth
+        - name: compat
+        - name: graphql
+        - name: assets
+      binds:
+        - address: "[::]:8008"
+
+database:
+  uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+
+secrets:
+  encryption: "${MAS_ENCRYPTION_SECRET}"
+  keys:
+    - kid: "primary"
+      key: "${MAS_SIGNING_KEY}"
+
+matrix:
+  homeserver: "${SYNAPSE_URL}"
+  secret: "${MAS_SHARED_SECRET}"
+  endpoint: "${SYNAPSE_URL}"
+
+clients:
+  - client_id: "synapse"
+    client_auth_method: "client_secret_basic"
+    client_secret: "${MAS_SHARED_SECRET}"
+
+templates:
+  path: /usr/local/share/mas-cli/templates
+  assets_manifest: /usr/local/share/mas-cli/manifest.json
+
+branding:
+  service_name: "My Matrix Server"
