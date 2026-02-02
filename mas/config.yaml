@@ -13,7 +13,7 @@ http:
         - address: "[::]:8008"
 
 database:
-  uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway/railway"
+  uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway"
 
 secrets:
   encryption: "8f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a2918"
