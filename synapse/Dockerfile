@@ -1,9 +1,10 @@
 FROM matrixdotorg/synapse:latest
 
-# Copy config to a safe place that won't be overwritten by a volume
+# Copy your config to the safe location
 COPY homeserver.yaml /etc/synapse/homeserver.yaml
 
-EXPOSE 8008
+# Reset the Entrypoint to bypass the "auto-generate" script
+ENTRYPOINT ["python3", "-m", "synapse.app.homeserver"]
 
-# Start Synapse pointing to that safe path
-CMD ["run", "--config-path", "/etc/synapse/homeserver.yaml"]
+# Tell it exactly where the config is
+CMD ["--config-path", "/etc/synapse/homeserver.yaml"]

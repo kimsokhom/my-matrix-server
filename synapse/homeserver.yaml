@@ -3,6 +3,12 @@ public_baseurl: "https://synapse-production-e1f9.up.railway.app/"
 pid_file: /data/homeserver.pid
 media_store_path: /data/media_store
 
+# Use this path - Synapse will create the file here on first start
+signing_key_path: "/data/signing.key"
+
+# COMMENT THIS OUT so Synapse uses default logging to the console
+# log_config: "/data/log.config"
+
 listeners:
   - port: 8008
     bind_addresses: ["0.0.0.0"]
@@ -24,15 +30,9 @@ database:
     cp_min: 5
     cp_max: 10
 
-# Required for logging
-log_config: "/data/log.config"
-
-# Prevents Synapse from trying to generate log config
 suppress_key_server_warning: true
-
 macaroon_secret_key: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
 form_secret: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
-signing_key_path: "/data/synapse-production-e1f9.up.railway.app.signing.key"
 registration_shared_secret: "JkD92LsKp0Q7A3xM"
 
 trusted_third_party_id_servers:
