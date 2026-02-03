@@ -1,10 +1,9 @@
 FROM matrixdotorg/synapse:latest
 
-# Copy config directly
-COPY homeserver.yaml /data/homeserver.yaml
+# Copy config to a safe place that won't be overwritten by a volume
+COPY homeserver.yaml /etc/synapse/homeserver.yaml
 
 EXPOSE 8008
 
-# Run Synapse directly
-ENTRYPOINT ["python", "-m", "synapse.app.homeserver"]
-CMD ["--config-path=/data/homeserver.yaml"]
+# Start Synapse pointing to that safe path
+CMD ["run", "--config-path", "/etc/synapse/homeserver.yaml"]

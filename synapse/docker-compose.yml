@@ -2,13 +2,12 @@ version: "3.9"
 
 services:
   synapse:
-    build:
-      context: ./synapse          # folder that contains Dockerfile + homeserver.yaml
-      dockerfile: Dockerfile
+    build: ./synapse
+    restart: unless-stopped
     ports:
       - "8008:8008"
-    restart: unless-stopped
     environment:
+      SYNAPSE_CONFIG_PATH: /etc/synapse/homeserver.yaml
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -17,11 +16,8 @@ services:
       MAS_SHARED_SECRET: ${MAS_SHARED_SECRET}
       MACAROON_KEY: ${MACAROON_KEY}
       SERVER_NAME: ${SERVER_NAME}
-      # Tell Synapse where the config lives (outside the /data mount)
-      SYNAPSE_CONFIG_PATH: /etc/synapse/homeserver.yaml
     volumes:
       - synapse-data:/data        # persists DB, media, etc.
-    # No need to mount homeserver.yaml – it’s baked into the image
 
 volumes:
   synapse-data:
