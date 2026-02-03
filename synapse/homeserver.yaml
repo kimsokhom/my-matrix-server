@@ -40,8 +40,8 @@ registration_shared_secret: "JkD92LsKp0Q7A3xM"
 trusted_third_party_id_servers:
   - "mas-production-9d06.up.railway.app"
 
-enable_registration: false
-enable_registration_without_verification: false
+enable_registration: true
+enable_registration_without_verification: true
 
 serve_server_well_known: true
 serve_client_well_known: true
