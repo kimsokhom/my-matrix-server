@@ -29,6 +29,7 @@ database:
     port: 5432
     cp_min: 5
     cp_max: 10
+    allow_unsafe_locale: true
 
 suppress_key_server_warning: true
 macaroon_secret_key: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
