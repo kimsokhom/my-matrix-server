@@ -21,6 +21,7 @@ listeners:
 
 database:
   name: psycopg2
+  allow_unsafe_locale: true
   args:
     user: "postgres"
     password: "BjUtajUuXkRKPnugsQzZULGUxdijseLX"
@@ -29,7 +30,7 @@ database:
     port: 5432
     cp_min: 5
     cp_max: 10
-    allow_unsafe_locale: true
+    
 
 suppress_key_server_warning: true
 macaroon_secret_key: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
@@ -42,3 +43,4 @@ trusted_third_party_id_servers:
 enable_registration: false
 enable_metrics: false
 report_stats: false
+suppress_key_server_warning: true
