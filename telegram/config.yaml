@@ -8,6 +8,11 @@ appservice:
   port: 29317
   database: postgres://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/mautrix_telegram
 
+  # --- ADD THESE THREE LINES BELOW ---
+  id: telegram
+  as_token: railway_secret_token_1
+  hs_token: railway_secret_token_2
+
 telegram:
   api_id: 35365569 # <--- PUT YOUR ID HERE
   api_hash: 3c6ccc1a07813fea82e8a514d07e00e5 # <--- PUT YOUR HASH HERE

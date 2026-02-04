@@ -1,5 +1,8 @@
 FROM dock.mau.dev/mautrix/telegram:latest
-# Copy our custom config into the image
-COPY config.yaml /data/config.yaml
-# Copy the registration "key" so the bridge knows it
-COPY registration.yaml /data/registration.yaml
+
+# Copy your files to a safe folder
+COPY config.yaml /etc/mautrix-telegram/config.yaml
+COPY registration.yaml /etc/mautrix-telegram/registration.yaml
+
+# We tell the bridge exactly where the config is
+CMD ["python3", "-m", "mautrix_telegram", "-c", "/etc/mautrix-telegram/config.yaml"]
