@@ -8,6 +8,6 @@ namespaces:
   aliases:
     - exclusive: true
       regex: "#telegram_.*"
-url: http://mautrix-telegram:29317
+url: http://my-matrix-server.railway.internal:29317
 sender_localpart: telegrambot
 rate_limited: false
