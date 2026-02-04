@@ -23,4 +23,20 @@ bridge:
     "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
 
 logging:
-  level: INFO
+  version: 1
+  formatters:
+    precise:
+      format: "[%(asctime)s] [%(levelname)s@%(name)s] %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: precise
+      stream: ext://sys.stdout
+  loggers:
+    mau:
+      level: INFO
+    telethon:
+      level: INFO
+  root:
+    level: INFO
+    handlers: [console]
