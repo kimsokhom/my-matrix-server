@@ -1,0 +1,21 @@
+homeserver:
+  address: http://synapse:8008
+  domain: synapse-production-e1f9.up.railway.app
+
+appservice:
+  address: http://mautrix-telegram:29317
+  hostname: 0.0.0.0
+  port: 29317
+  database: postgres://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/mautrix_telegram
+
+telegram:
+  api_id: 35365569 # <--- PUT YOUR ID HERE
+  api_hash: 3c6ccc1a07813fea82e8a514d07e00e5 # <--- PUT YOUR HASH HERE
+
+bridge:
+  permissions:
+    "synapse-production-e1f9.up.railway.app": "full"
+    "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
+
+logging:
+  level: INFO

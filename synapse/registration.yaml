@@ -1,0 +1,13 @@
+id: telegram
+as_token: railway_secret_token_1
+hs_token: railway_secret_token_2
+namespaces:
+  users:
+    - exclusive: true
+      regex: "@telegram_.*"
+  aliases:
+    - exclusive: true
+      regex: "#telegram_.*"
+url: http://mautrix-telegram:29317
+sender_localpart: telegrambot
+rate_limited: false

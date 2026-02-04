@@ -48,3 +48,6 @@ serve_client_well_known: true
 enable_metrics: false
 report_stats: false
 suppress_key_server_warning: true
+
+app_service_config_files:
+  - /etc/synapse/registration.yaml

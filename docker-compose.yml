@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  # --- SYNAPSE (Matrix Server) ---
+  synapse:
+    build: ./synapse
+    restart: unless-stopped
+    environment:
+      SYNAPSE_CONFIG_PATH: /etc/synapse/homeserver.yaml
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: synapse # Ensure this matches your created DB
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MAS_SHARED_SECRET: ${MAS_SHARED_SECRET}
+      MACAROON_KEY: ${MACAROON_KEY}
+      SERVER_NAME: ${SERVER_NAME}
+    volumes:
+      - synapse-data:/data
+
+  # --- MAUTRIX-TELEGRAM (The Bridge) ---
+  mautrix-telegram:
+    build: ./telegram
+    restart: unless-stopped
+    depends_on:
+      - synapse
+    volumes:
+      - telegram-data:/data
+
+  # --- MAS (Authentication) ---
+  mas:
+    build: ./mas
+    restart: unless-stopped
+    depends_on:
+      - synapse
+    environment:
+      MAS_CONFIG: /etc/mas/config.yaml
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SYNAPSE_URL: ${SYNAPSE_URL}
+      MAS_SHARED_SECRET: ${MAS_SHARED_SECRET}
+      MAS_ENCRYPTION_SECRET: ${MAS_ENCRYPTION_SECRET}
+      MAS_SIGNING_KEY: ${MAS_SIGNING_KEY}
+
+  # --- ELEMENT (Web UI) ---
+  element:
+    image: vectorim/element-web:latest
+    restart: unless-stopped
+    environment:
+      ELEMENT_CONFIG: >
+        {"default_server_config":{"m.homeserver":{"base_url":"https://${SERVER_NAME}",
+        "server_name":"${SERVER_NAME}"},
+        "m.identity_server":{"base_url":"https://vector.im"}}}
+
+volumes:
+  synapse-data:
+  telegram-data:
