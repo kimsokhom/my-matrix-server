@@ -3,7 +3,7 @@ homeserver:
   domain: synapse-production-e1f9.up.railway.app
 
 appservice:
-  address: http://my-matrix-server.railway.internal:29317
+  address: http://mautrix-telegram.railway.internal:29317
   hostname: 0.0.0.0
   port: 29317
   database: postgres://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/mautrix_telegram
