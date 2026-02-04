@@ -21,6 +21,7 @@ bridge:
   permissions:
     "synapse-production-e1f9.up.railway.app": "full"
     "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
+  sync_with_custom_puppets: true
 
 logging:
   version: 1
