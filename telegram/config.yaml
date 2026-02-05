@@ -17,23 +17,35 @@ telegram:
   api_id: 35365569 # <--- PUT YOUR ID HERE
   api_hash: 3c6ccc1a07813fea82e8a514d07e00e5 # <--- PUT YOUR HASH HERE
 
+# --- BRIDGE SECTION ---
 bridge:
   permissions:
     "synapse-production-e1f9.up.railway.app": "full"
     "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
   backfill:
-        # Should the bridge fetch the last few messages when creating a portal?
-        enabled: true
-        # How many messages to fetch when a new room is created
-        initial_limit: 50
-        # Should the bridge fetch history when you join an old room?
-        missed_limit: 50
-        # If true, it will even catch messages sent while the bridge was offline
-        disable_notifications: true
+    # Should the bridge fetch the last few messages when creating a portal?
+    enabled: true
+    # How many messages to fetch when a new room is created
+    initial_limit: 50
+    # Should the bridge fetch history when you join an old room?
+    missed_limit: 50
+    # If true, it will even catch messages sent while the bridge was offline
+    disable_notifications: true
 
-    # This part is also important for "syncing" your own messages
+  # This part is also important for "syncing" your own messages
   sync_with_custom_puppets: true
 
+  double_puppet_server_map:
+    synapse-production-e1f9.up.railway.app: http://synapse:8008
+
+  double_puppet_allow_discovery: true
+
+  # This must match your Synapse registration_shared_secret
+  login_shared_secret_map:
+    synapse-production-e1f9.up.railway.app: "JkD92LsKp0Q7A3xM"
+
+
+# --- LOGGING SECTION ---
 logging:
   version: 1
   formatters:
