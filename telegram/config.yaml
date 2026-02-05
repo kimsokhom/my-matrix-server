@@ -21,6 +21,17 @@ bridge:
   permissions:
     "synapse-production-e1f9.up.railway.app": "full"
     "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
+  backfill:
+        # Should the bridge fetch the last few messages when creating a portal?
+        enabled: true
+        # How many messages to fetch when a new room is created
+        initial_limit: 50
+        # Should the bridge fetch history when you join an old room?
+        missed_limit: 50
+        # If true, it will even catch messages sent while the bridge was offline
+        disable_notifications: true
+
+    # This part is also important for "syncing" your own messages
   sync_with_custom_puppets: true
 
 logging:
