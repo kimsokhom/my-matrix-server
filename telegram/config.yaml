@@ -1,58 +1,54 @@
+# --- HOMESERVER CONFIGURATION ---
 homeserver:
   address: http://synapse.railway.internal:8008
   domain: synapse-production-e1f9.up.railway.app
 
+# --- APPSERVICE CONFIGURATION ---
 appservice:
   address: http://mautrix-telegram.railway.internal:29317
   hostname: 0.0.0.0
   port: 29317
   database: postgres://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/mautrix_telegram
-
-  # --- ADD THESE THREE LINES BELOW ---
+  
+  # Identity & Security
   id: telegram
   as_token: railway_secret_token_1
   hs_token: railway_secret_token_2
 
+# --- TELEGRAM API CONFIGURATION ---
 telegram:
-  api_id: 35365569 # <--- PUT YOUR ID HERE
-  api_hash: 3c6ccc1a07813fea82e8a514d07e00e5 # <--- PUT YOUR HASH HERE
+  api_id: 35365569
+  api_hash: 3c6ccc1a07813fea82e8a514d07e00e5
 
-# --- BRIDGE SECTION ---
+# --- BRIDGE SETTINGS ---
 bridge:
   permissions:
     "synapse-production-e1f9.up.railway.app": "full"
-    "@admin_1:synapse-production-e1f9.up.railway.app": "admin" # Replace your_username with your Matrix name
+    "@admin_1:synapse-production-e1f9.up.railway.app": "admin"
+
+  # History & Backfill
   backfill:
-    # Should the bridge fetch the last few messages when creating a portal?
     enabled: true
-    # How many messages to fetch when a new room is created
     initial_limit: 50
-    # Should the bridge fetch history when you join an old room?
     missed_limit: 50
-    # If true, it will even catch messages sent while the bridge was offline
     disable_notifications: true
 
-  # This part is also important for "syncing" your own messages
+  # Puppet & Syncing Settings
   sync_with_custom_puppets: true
-
+  double_puppet_allow_discovery: true
   double_puppet_server_map:
     synapse-production-e1f9.up.railway.app: http://synapse.railway.internal:8008
 
-  double_puppet_allow_discovery: true
-
-  # This must match your Synapse registration_shared_secret
+  # Authentication
+  allow_matrix_login: true
   login_shared_secret_map:
     synapse-production-e1f9.up.railway.app: "JkD92LsKp0Q7A3xM"
 
-  allow_matrix_login: true
-  # 3. THE DEVELOPER FIX FOR ENCRYPTION:
-  # This tells the bridge: "If you find encryption keys, ignore them and
-  # create a new, clean device ID just for the bridge."
-  # Add these lines:
+  # Encryption & Device Management
   force_unverified_device: true
   device_name: "Telegram Bridge"
 
-# --- LOGGING SECTION ---
+# --- LOGGING CONFIGURATION ---
 logging:
   version: 1
   formatters:
