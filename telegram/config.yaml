@@ -45,7 +45,12 @@ bridge:
     synapse-production-e1f9.up.railway.app: "JkD92LsKp0Q7A3xM"
 
   allow_matrix_login: true
-
+  # 3. THE DEVELOPER FIX FOR ENCRYPTION:
+  # This tells the bridge: "If you find encryption keys, ignore them and
+  # create a new, clean device ID just for the bridge."
+  # Add these lines:
+  force_unverified_device: true
+  device_name: "Telegram Bridge"
 
 # --- LOGGING SECTION ---
 logging:
