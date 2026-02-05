@@ -3,21 +3,11 @@ as_token: railway_secret_token_1
 hs_token: railway_secret_token_2
 namespaces:
   users:
-    # This allows the bridge to create "Ghost Users" for your Telegram contacts
     - exclusive: true
-      regex: '@telegram_.*:synapse-production-e1f9.up.railway.app'
-    
-    # DEVELOPER FIX: This allows the bridge to "puppet" your actual account
-    # We set exclusive to false so you still have control, but the bridge can help.
-    - exclusive: false
-      regex: '@admin_1:synapse-production-e1f9.up.railway.app'
-
+      regex: "@telegram_.*"
   aliases:
-    # This allows the bridge to create room addresses for Telegram groups
     - exclusive: true
-      regex: '#telegram_.*:synapse-production-e1f9.up.railway.app'
-
-# This is how Synapse finds the bridge on the Railway internal network
+      regex: "#telegram_.*"
 url: http://mautrix-telegram.railway.internal:29317
 sender_localpart: telegrambot
 rate_limited: false
