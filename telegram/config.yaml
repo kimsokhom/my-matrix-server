@@ -44,6 +44,8 @@ bridge:
   login_shared_secret_map:
     synapse-production-e1f9.up.railway.app: "JkD92LsKp0Q7A3xM"
 
+  allow_matrix_login: true
+
 
 # --- LOGGING SECTION ---
 logging:
