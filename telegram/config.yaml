@@ -36,7 +36,7 @@ bridge:
   sync_with_custom_puppets: true
 
   double_puppet_server_map:
-    synapse-production-e1f9.up.railway.app: http://synapse:8008
+    synapse-production-e1f9.up.railway.app: http://synapse.railway.internal:8008
 
   double_puppet_allow_discovery: true
 
