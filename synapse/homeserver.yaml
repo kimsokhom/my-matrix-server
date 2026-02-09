@@ -37,11 +37,16 @@ trusted_third_party_id_servers:
 enable_registration: true
 enable_registration_without_verification: true
 
-# Add this to disable password policy
+# Password configuration
 password_config:
   enabled: true
   policy:
     enabled: false
+    minimum_length: 1
+    require_digit: false
+    require_symbol: false
+    require_lowercase: false
+    require_uppercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
