@@ -1,30 +1,30 @@
 # --- HOMESERVER CONFIGURATION ---
 homeserver:
   address: http://synapse.railway.internal:8008
-  domain: synapse-production-e1f9.up.railway.app
+  domain: ${SERVER_NAME}
 
 # --- APPSERVICE CONFIGURATION ---
 appservice:
   address: http://mautrix-telegram.railway.internal:29317
   hostname: 0.0.0.0
   port: 29317
-  database: postgres://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/mautrix_telegram
-  
+  database: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/mautrix_telegram
+
   # Identity & Security
   id: telegram
-  as_token: railway_secret_token_1
-  hs_token: railway_secret_token_2
+  as_token: ${TELEGRAM_AS_TOKEN}
+  hs_token: ${TELEGRAM_HS_TOKEN}
 
 # --- TELEGRAM API CONFIGURATION ---
 telegram:
-  api_id: 35365569
-  api_hash: 3c6ccc1a07813fea82e8a514d07e00e5
+  api_id: ${TELEGRAM_API_ID}
+  api_hash: ${TELEGRAM_API_HASH}
 
 # --- BRIDGE SETTINGS ---
 bridge:
   permissions:
-    "synapse-production-e1f9.up.railway.app": "full"
-    "@admin_1:synapse-production-e1f9.up.railway.app": "admin"
+    "${SERVER_NAME}": "full"
+    "@admin_1:${SERVER_NAME}": "admin"
 
   # History & Backfill
   backfill:
@@ -37,12 +37,12 @@ bridge:
   sync_with_custom_puppets: true
   double_puppet_allow_discovery: true
   double_puppet_server_map:
-    synapse-production-e1f9.up.railway.app: http://synapse.railway.internal:8008
+    ${SERVER_NAME}: http://synapse.railway.internal:8008
 
   # Authentication
   allow_matrix_login: true
   login_shared_secret_map:
-    synapse-production-e1f9.up.railway.app: "JkD92LsKp0Q7A3xM"
+    ${SERVER_NAME}: "${REGISTRATION_SHARED_SECRET}"
 
   # Encryption & Device Management
   force_unverified_device: true

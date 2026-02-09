@@ -1,5 +1,5 @@
 http:
-  public_base: "https://mas-production-9d06.up.railway.app/"
+  public_base: "${MAS_URL}/"
   listeners:
     - name: web
       resources:
@@ -13,20 +13,20 @@ http:
         - address: "0.0.0.0:8008"
 
 database:
-  uri: "postgresql://postgres:BjUtajUuXkRKPnugsQzZULGUxdijseLX@postgres.railway.internal:5432/railway"
+  uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 secrets:
-  encryption: "8f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a2918"
+  encryption: "${MAS_ENCRYPTION_SECRET}"
 
 matrix:
-  homeserver: "https://synapse-production-e1f9.up.railway.app"
-  secret: "JkD92LsKp0Q7A3xM"
-  endpoint: "https://synapse-production-e1f9.up.railway.app"
+  homeserver: "${SYNAPSE_URL}"
+  secret: "${MAS_SHARED_SECRET}"
+  endpoint: "${SYNAPSE_URL}"
 
 clients:
-  - client_id: "0000000000000000000SYNAPSE"
+  - client_id: "${MAS_CLIENT_ID}"
     client_auth_method: "client_secret_basic"
-    client_secret: "JkD92LsKp0Q7A3xM"
+    client_secret: "${MAS_CLIENT_SECRET}"
 
 templates:
   path: /usr/local/share/mas-cli/templates

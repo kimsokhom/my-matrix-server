@@ -1,11 +1,19 @@
 FROM matrixdotorg/synapse:latest
 
-# Copy your config to the safe location
-COPY homeserver.yaml /etc/synapse/homeserver.yaml
-COPY registration.yaml /etc/synapse/registration.yaml
+# Install envsubst for environment variable substitution
+RUN apt-get update && apt-get install -y gettext-base && rm -rf /var/lib/apt/lists/*
 
-# Reset the Entrypoint to bypass the "auto-generate" script
-ENTRYPOINT ["python3", "-m", "synapse.app.homeserver"]
+COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
+COPY registration.yaml /etc/synapse/registration.yaml.template
 
-# Tell it exactly where the config is
-CMD ["--config-path", "/etc/synapse/homeserver.yaml"]
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+envsubst < /etc/synapse/homeserver.yaml.template > /data/homeserver.yaml\n\
+envsubst < /etc/synapse/registration.yaml.template > /etc/synapse/registration.yaml\n\
+exec python3 -m synapse.app.homeserver --config-path=/data/homeserver.yaml' > /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE 8008
+
+ENTRYPOINT ["/start.sh"]

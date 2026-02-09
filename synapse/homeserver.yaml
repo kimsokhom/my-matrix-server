@@ -1,13 +1,8 @@
-server_name: "synapse-production-e1f9.up.railway.app"
-public_baseurl: "https://synapse-production-e1f9.up.railway.app/"
+server_name: "${SERVER_NAME}"
+public_baseurl: "https://${SERVER_NAME}/"
 pid_file: /data/homeserver.pid
 media_store_path: /data/media_store
-
-# Use this path - Synapse will create the file here on first start
 signing_key_path: "/data/signing.key"
-
-# COMMENT THIS OUT so Synapse uses default logging to the console
-# log_config: "/data/log.config"
 
 listeners:
   - port: 8008
@@ -23,31 +18,28 @@ database:
   name: psycopg2
   allow_unsafe_locale: true
   args:
-    user: "postgres"
-    password: "BjUtajUuXkRKPnugsQzZULGUxdijseLX"
-    host: "postgres.railway.internal"
+    user: "${POSTGRES_USER}"
+    password: "${POSTGRES_PASSWORD}"
+    host: "${POSTGRES_HOST}"
     database: "synapse"
-    port: 5432
+    port: ${POSTGRES_PORT}
     cp_min: 5
     cp_max: 10
-    
 
 suppress_key_server_warning: true
-macaroon_secret_key: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
-form_secret: "aF9Kx2M7QWc8L0R3D6N1PZVtH5YBEsU4Jm"
-registration_shared_secret: "JkD92LsKp0Q7A3xM"
+macaroon_secret_key: "${MACAROON_KEY}"
+form_secret: "${FORM_SECRET}"
+registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
 trusted_third_party_id_servers:
-  - "mas-production-9d06.up.railway.app"
+  - "${MAS_URL}"
 
 enable_registration: true
 enable_registration_without_verification: true
-
 serve_server_well_known: true
 serve_client_well_known: true
 enable_metrics: false
 report_stats: false
-suppress_key_server_warning: true
 
 app_service_config_files:
   - /etc/synapse/registration.yaml
