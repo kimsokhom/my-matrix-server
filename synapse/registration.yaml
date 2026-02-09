@@ -1,6 +1,6 @@
 id: telegram
-as_token: railway_secret_token_1
-hs_token: railway_secret_token_2
+as_token: ${TELEGRAM_AS_TOKEN}
+hs_token: ${TELEGRAM_HS_TOKEN}
 namespaces:
   users:
     - exclusive: true
