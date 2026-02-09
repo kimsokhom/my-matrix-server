@@ -4,23 +4,11 @@ RUN apt-get update && \
     apt-get install -y gettext-base && \
     rm -rf /var/lib/apt/lists/*
 
-# Create the startup script in the builder
-RUN printf '#!/bin/sh\n\
-set -e\n\
-echo "Substituting environment variables..."\n\
-/usr/bin/envsubst < /config.yaml.template > /tmp/config.yaml\n\
-echo "Starting MAS server..."\n\
-exec /usr/local/bin/mas server --config /tmp/config.yaml\n' > /start.sh && \
-    chmod +x /start.sh
-
 # Stage 2: Use MAS image
 FROM ghcr.io/element-hq/matrix-authentication-service:latest
 
 # Copy envsubst binary from builder
 COPY --from=builder /usr/bin/envsubst /usr/bin/envsubst
-
-# Copy the startup script from builder
-COPY --from=builder /start.sh /start.sh
 
 # Copy shell binary for the script to run
 COPY --from=builder /bin/sh /bin/sh
@@ -32,6 +20,15 @@ COPY --from=builder /lib64/ld-linux-x86-64.so.2 /lib64/
 
 # Copy config template
 COPY config.yaml /config.yaml.template
+
+# Create startup script that uses the correct mas path
+RUN printf '#!/bin/sh\n\
+set -e\n\
+echo "Substituting environment variables..."\n\
+/usr/bin/envsubst < /config.yaml.template > /tmp/config.yaml\n\
+echo "Starting MAS server..."\n\
+exec /mas server --config /tmp/config.yaml\n' > /start.sh && \
+    chmod +x /start.sh
 
 EXPOSE 8008
 
