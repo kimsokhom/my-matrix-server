@@ -1,32 +1,30 @@
-# Use a newer base for the builder to match the libraries MAS now uses
-FROM debian:trixie-slim AS builder
+# 1. Get the MAS binary from the official image
+FROM ghcr.io/element-hq/matrix-authentication-service:latest AS mas-src
+
+# 2. Use Ubuntu 24.04 for the final image (it has the required GLIBC 2.39 and a shell)
+FROM ubuntu:24.04
+
+# 3. Install envsubst and CA certificates (needed for secure connections)
 RUN apt-get update && \
-    apt-get install -y gettext-base && \
+    apt-get install -y gettext-base ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Create the startup script
+# 4. Copy the mas-cli binary from the official image
+COPY --from=mas-src /usr/local/bin/mas-cli /usr/local/bin/mas-cli
+
+# 5. Create the startup script directly in the Dockerfile
 RUN printf '#!/bin/sh\n\
 set -e\n\
 echo "Substituting environment variables..."\n\
-/usr/bin/envsubst < /config.yaml.template > /tmp/config.yaml\n\
+envsubst < /config.yaml.template > /tmp/config.yaml\n\
 echo "Starting MAS server..."\n\
 exec /usr/local/bin/mas-cli server --config /tmp/config.yaml\n' > /start.sh && \
     chmod +x /start.sh
 
-# Use the official MAS image
-FROM ghcr.io/element-hq/matrix-authentication-service:latest
-
-# Copy ONLY the tools and script you created, NOT the system libraries
-COPY --from=builder /usr/bin/envsubst /usr/bin/envsubst
-COPY --from=builder /start.sh /start.sh
-
-# If the MAS image is minimal (distroless), you might need the shared libs for envsubst.
-# But DO NOT overwrite existing ones. Instead, rely on the base image.
-# If envsubst fails, we can install it differently, but start with this:
-
-# Copy your config template
+# 6. Copy your config template
 COPY config.yaml /config.yaml.template
 
 EXPOSE 8008
 
+# Now /bin/sh exists, so this will work
 ENTRYPOINT ["/bin/sh", "/start.sh"]
