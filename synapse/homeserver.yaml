@@ -31,8 +31,8 @@ macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
-trusted_third_party_id_servers:
-  - "${MAS_URL}"
+# trusted_third_party_id_servers:
+#   - "${MAS_URL}"
 
 enable_registration: true
 enable_registration_without_verification: true
