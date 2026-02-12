@@ -42,9 +42,8 @@ bridge:
 
   # Authentication
   allow_matrix_login: true
-  login_shared_secret_map: {}
-  # login_shared_secret_map:
-  #   ${SERVER_NAME}: "${REGISTRATION_SHARED_SECRET}"
+  login_shared_secret_map:
+    ${SERVER_NAME}: "${REGISTRATION_SHARED_SECRET}"
 
   # --- SAFE MODE SETTINGS (Crucial to avoid bans) ---
   presence: false # NEVER sync "Online" status
