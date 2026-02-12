@@ -39,7 +39,7 @@ enable_registration_without_verification: true
 
 # Password configuration
 password_config:
-  enabled: false
+  enabled: true
   minimum_length: 1
   require_digit: false
   require_symbol: false
