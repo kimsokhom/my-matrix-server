@@ -58,7 +58,7 @@ oidc_providers:
   - idp_id: mas
     idp_name: "Matrix Authentication Service"
     discover: true
-    issuer: "${MAS_URL}/"
+    issuer: "${MAS_URL}"
     client_id: "${MAS_CLIENT_ID}"
     client_secret: "${MAS_CLIENT_SECRET}"
     scopes: ["openid", "profile"]
