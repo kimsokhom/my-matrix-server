@@ -27,6 +27,8 @@ clients:
   - client_id: "${MAS_CLIENT_ID}"
     client_auth_method: "client_secret_basic"
     client_secret: "${MAS_CLIENT_SECRET}"
+    redirect_uris:
+      - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
 
 templates:
   path: /usr/local/share/mas-cli/templates
