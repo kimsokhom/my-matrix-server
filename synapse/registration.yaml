@@ -7,7 +7,7 @@ namespaces:
       regex: "@telegram_.*"
     # This allows the bridge to puppet your admin account
     - exclusive: false
-      regex: "@admin_1:${SERVER_NAME}"
+      regex: "@.*:${SERVER_NAME}"
   aliases:
     - exclusive: true
       regex: "#telegram_.*"
