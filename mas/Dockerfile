@@ -1,37 +1,30 @@
-FROM debian:bookworm-slim AS builder
+# Use a newer base for the builder to match the libraries MAS now uses
+FROM debian:trixie-slim AS builder
 RUN apt-get update && \
     apt-get install -y gettext-base && \
     rm -rf /var/lib/apt/lists/*
 
-# Create a simpler startup script that tries common paths
+# Create the startup script
 RUN printf '#!/bin/sh\n\
 set -e\n\
 echo "Substituting environment variables..."\n\
 /usr/bin/envsubst < /config.yaml.template > /tmp/config.yaml\n\
 echo "Starting MAS server..."\n\
-# Try different possible paths for the mas binary\n\
-if [ -f /usr/local/bin/mas-cli ]; then\n\
-  exec /usr/local/bin/mas-cli server --config /tmp/config.yaml\n\
-elif [ -f /usr/bin/mas-cli ]; then\n\
-  exec /usr/bin/mas-cli server --config /tmp/config.yaml\n\
-elif [ -f /mas-cli ]; then\n\
-  exec /mas-cli server --config /tmp/config.yaml\n\
-else\n\
-  echo "ERROR: mas-cli binary not found!"\n\
-  exit 1\n\
-fi\n' > /start.sh && \
+exec /usr/local/bin/mas-cli server --config /tmp/config.yaml\n' > /start.sh && \
     chmod +x /start.sh
 
+# Use the official MAS image
 FROM ghcr.io/element-hq/matrix-authentication-service:latest
 
-# Copy only what we need from builder
+# Copy ONLY the tools and script you created, NOT the system libraries
 COPY --from=builder /usr/bin/envsubst /usr/bin/envsubst
-COPY --from=builder /bin/sh /bin/sh
-COPY --from=builder /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib64/ld-linux-x86-64.so.2 /lib64/
 COPY --from=builder /start.sh /start.sh
 
-# Copy config template
+# If the MAS image is minimal (distroless), you might need the shared libs for envsubst.
+# But DO NOT overwrite existing ones. Instead, rely on the base image.
+# If envsubst fails, we can install it differently, but start with this:
+
+# Copy your config template
 COPY config.yaml /config.yaml.template
 
 EXPOSE 8008
