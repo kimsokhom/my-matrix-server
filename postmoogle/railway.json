@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "DOCKERFILE"
+  },
+  "deploy": {
+    "startCommand": "/postmoogle",
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": null
+  }
+}
