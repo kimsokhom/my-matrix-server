@@ -1,4 +1,4 @@
-# Postmoogle configuration using environment variables
+# Postmoogle configuration
 homeserver: "${POSTMOOGLE_HOMESERVER}"
 login: "${POSTMOOGLE_LOGIN}"
 password: "${POSTMOOGLE_PASSWORD}"
@@ -10,5 +10,13 @@ database:
 domains:
   - "${POSTMOOGLE_DOMAINS}"
 
+# Global threading toggle
+threads: false
+
+# DEFAULT ROOM SETTINGS (This is what you need)
 defaults:
   threadify: false
+  nothreads: true
+  # You can also add these to make it even cleaner:
+  # nosender: false
+  # nosubject: false

@@ -1,10 +1,10 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Use root to ensure we can write to /data
+# Use root user
 USER 0
 
-# Copy your custom config to the location the bot expects
-COPY config.yaml /data/config.yaml
+# Copy config to the root / instead of /data to avoid volume overwrites
+COPY config.yaml /config.yaml
 
-# Tell the bot where the config is (if needed, usually it checks /data/config.yaml)
-ENV POSTMOOGLE_CONFIG=/data/config.yaml
+# Explicitly tell the bot where the config file is
+ENV POSTMOOGLE_CONFIG=/config.yaml
