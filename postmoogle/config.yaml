@@ -1,0 +1,14 @@
+# Postmoogle configuration using environment variables
+homeserver: "${POSTMOOGLE_HOMESERVER}"
+login: "${POSTMOOGLE_LOGIN}"
+password: "${POSTMOOGLE_PASSWORD}"
+
+database:
+  dialect: "${POSTMOOGLE_DB_DIALECT}"
+  dsn: "${POSTMOOGLE_DB_DSN}"
+
+domains:
+  - "${POSTMOOGLE_DOMAINS}"
+
+# This overrides the default behavior and fixes the threading issue
+threads: false
