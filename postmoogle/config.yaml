@@ -1,22 +1,12 @@
-# Postmoogle configuration
-homeserver: "${POSTMOOGLE_HOMESERVER}"
-login: "${POSTMOOGLE_LOGIN}"
-password: "${POSTMOOGLE_PASSWORD}"
-
+homeserver: "http://synapse.railway.internal:8008"
+login: "@postmoogle:your-server.up.railway.app"
+password: "YourPasswordHere"
 database:
-  dialect: "${POSTMOOGLE_DB_DIALECT}"
-  dsn: "${POSTMOOGLE_DB_DSN}"
-
+  dialect: "sqlite3"
+  dsn: "/data/postmoogle.db"
 domains:
-  - "${POSTMOOGLE_DOMAINS}"
-
-# Global threading toggle
+  - "rexform-matrix.abrdns.com"
 threads: false
-
-# DEFAULT ROOM SETTINGS (This is what you need)
 defaults:
   threadify: false
   nothreads: true
-  # You can also add these to make it even cleaner:
-  # nosender: false
-  # nosubject: false
