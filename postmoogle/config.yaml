@@ -1,12 +1,19 @@
+# Postmoogle Production Configuration
 homeserver: "http://synapse.railway.internal:8008"
-login: "@postmoogle:your-server.up.railway.app"
-password: "YourPasswordHere"
+login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+password: "RexformMail2024"
+
 database:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
+
 domains:
   - "rexform-matrix.abrdns.com"
+
+# Disable Matrix Native Threads globally
 threads: false
+
+# Set defaults for all NEW rooms created from now on
 defaults:
   threadify: false
   nothreads: true
