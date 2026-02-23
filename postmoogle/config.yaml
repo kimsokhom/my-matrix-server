@@ -10,5 +10,5 @@ database:
 domains:
   - "${POSTMOOGLE_DOMAINS}"
 
-# This overrides the default behavior and fixes the threading issue
-threads: false
+defaults:
+  threadify: false
