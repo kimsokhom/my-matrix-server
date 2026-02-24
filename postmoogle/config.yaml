@@ -3,8 +3,8 @@ homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# This MUST be 'data_secret' (not 'secret') to fix the pickle error
-data_secret: "12345678901234567890123456789012"
+# This MUST be 'datasecret' (no underscore) to fix the "pickle key" crash
+datasecret: "12345678901234567890123456789012"
 
 database:
   dialect: "sqlite3"
@@ -13,12 +13,12 @@ database:
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Core Bridge Settings
+# Core Matrix Threading
 threads: false
 
-# DEFAULT ROOM SETTINGS (This is where we solve your threading issue)
+# DEFAULT ROOM SETTINGS (This solves your threading problem)
 defaults:
-  nothreads: true
-  threadify: false
-  # Prove the file is working
-  owner: "Scratch-Fix-Verified"
+  threadify: false # Do not use threads for email bodies
+  nothreads: true # Do not use Matrix-native threads for chains
+  # This owner string proves the file is being read correctly
+  owner: "Production-Fix-Final"

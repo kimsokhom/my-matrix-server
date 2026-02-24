@@ -1,12 +1,11 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# We cannot use RUN or USER because this is a 'scratch' image.
-# We just copy the file to the root.
-COPY config.yaml /config.yaml
+# Scratch image: No shell, just COPY
+COPY config.yaml /bin/config.yaml
 
-# Point the bot to the file
-ENV POSTMOOGLE_CONFIG=/config.yaml
+# Set the working directory so the bot finds the file easily
+WORKDIR /bin
 
-# Set the Entrypoint to the binary path shown in your snippet
-# and pass the config flag.
-ENTRYPOINT ["/bin/postmoogle", "-config", "/config.yaml"]
+# Start the bot. We use the absolute path /bin/postmoogle 
+# and explicitly point to the config file.
+ENTRYPOINT ["/bin/postmoogle", "-config", "/bin/config.yaml"]
