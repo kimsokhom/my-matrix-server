@@ -1,6 +1,9 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Install envsubst for environment variable substitution (run as whatever user the base image uses)
+# MUST SWITCH TO ROOT to run apk add and modify files
+USER 0
+
+# Install envsubst for environment variable substitution
 RUN apk add --no-cache gettext
 
 # Copy config template
@@ -12,9 +15,11 @@ set -e\n\
 echo "Generating config from template..."\n\
 envsubst < /config.yaml.template > /data/config.yaml\n\
 echo "Config generated. Starting Postmoogle..."\n\
-cat /data/config.yaml\n\
+# Optional: cat /data/config.yaml (Be careful, this will print your secret to the logs!)\n\
 exec /postmoogle\n' > /start.sh && chmod +x /start.sh
 
+# Point the bot to the generated config
 ENV POSTMOOGLE_CONFIG=/data/config.yaml
 
+# Run the startup script
 ENTRYPOINT ["/start.sh"]
