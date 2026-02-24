@@ -1,22 +1,25 @@
-# Postmoogle Production Configuration
-homeserver: "${POSTMOOGLE_HOMESERVER}"
-login: "${POSTMOOGLE_LOGIN}"
-password: "${POSTMOOGLE_PASSWORD}"
+# Postmoogle Production source-of-truth
+homeserver: "http://synapse.railway.internal:8008"
+login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+password: "RexformMail2024"
 
-# Pickle key for encryption (must be exactly 32 characters)
-secret: "${POSTMOOGLE_DATA_SECRET}"
+# The Pickle Key (must be exactly 32 characters)
+# This fixes the "pickle key must be provided" error
+secret: "12345678901234567890123456789012"
 
 database:
-  dialect: "${POSTMOOGLE_DB_DIALECT}"
-  dsn: "${POSTMOOGLE_DB_DSN}"
+  dialect: "sqlite3"
+  dsn: "/data/postmoogle.db"
 
 domains:
-  - "${POSTMOOGLE_DOMAINS}"
+  - "rexform-matrix.abrdns.com"
 
-# Disable Matrix-Native Threads globally
+# Core Bridge Settings
 threads: false
 
-# DEFAULT ROOM SETTINGS
+# DEFAULT ROOM SETTINGS (The Fix for threading)
 defaults:
   nothreads: true
   threadify: false
+  # PROOF: When you type !pm help, it MUST show this exact owner
+  owner: "Production-Final-Source-Of-Truth"
