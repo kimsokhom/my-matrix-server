@@ -1,19 +1,24 @@
+# Postmoogle Production Config (Scratch Image compatible)
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
+
+# This is the "pickle key" (Must be 32 chars)
 secret: "12345678901234567890123456789012"
+
 database:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
+
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Disable bridge-wide threading
+# Core Setting
 threads: false
 
-# Force these defaults for all NEW rooms
+# DEFAULT ROOM SETTINGS (The Fix)
 defaults:
-  threadify: false
   nothreads: true
-  noreplies: true
-  owner: "Verified-Production-File"
+  threadify: false
+  # This owner change will prove the file is loaded
+  owner: "Scratch-Config-Final"
