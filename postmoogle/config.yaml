@@ -1,17 +1,26 @@
-homeserver: "http://synapse.railway.internal:8008"
-login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
-password: "RexformMail2024"
+# Postmoogle Configuration
+homeserver: "https://your-synapse-server.com"
+login: "@postmoogle:your-server.com"
+password: "YourSecurePassword123"
 
-# Correct nested structure for 'data.secret'
-data:
-  secret: "12345678901234567890123456789012"
+# Encryption key (must be exactly 32 characters)
+secret: "12345678901234567890123456789012"
 
-db:
-  dsn: "/data/postmoogle.db"
+database:
   dialect: "sqlite3"
+  dsn: "/data/postmoogle.db"
 
 domains:
-  - "rexform-matrix.abrdns.com"
+  - "your-domain.com"
 
-# Note: 'defaults' is not supported by your version's code,
-# so it is omitted to avoid confusion.
+threads: false
+
+defaults:
+  nothread: true
+
+mailbox:
+  prefix: ""
+  use_localpart: true
+
+logging:
+  level: "info"

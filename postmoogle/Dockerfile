@@ -1,8 +1,8 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Copy config to the root.
-COPY config.yaml /config.yaml
+# Copy config directly
+COPY config.yaml /data/config.yaml
 
-# Tell the bot where the config is. 
-# The base image will run /bin/postmoogle automatically.
-ENV POSTMOOGLE_CONFIG=/config.yaml
+ENV POSTMOOGLE_CONFIG=/data/config.yaml
+
+# The base image automatically runs /postmoogle
