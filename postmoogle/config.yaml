@@ -1,25 +1,34 @@
-# --- SERVER ACCESS ---
+# --- ENCRYPTION (The fix for the crash) ---
+# Your clue says to use 'pickle_key'
+pickle_key: "12345678901234567890123456789012"
+
+# Your code snippet said 'data.secret'
+data:
+  secret: "12345678901234567890123456789012"
+
+# --- CORE SETTINGS ---
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# Pickle key for encryption (must be exactly 32 characters) - TOP LEVEL
-pickle_key: "12345678901234567890123456789012"
-
-# --- DATABASE ---
-database:
+db:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
 
-# --- SMTP ---
 domains:
   - "rexform-matrix.abrdns.com"
 
-port: 25
-
-# --- BRIDGE CONTROL ---
+# --- BRIDGE BEHAVIOR ---
 threads: false
+loglevel: "INFO"
 
-# Logging
-logging:
-  level: "info"
+# Add your Matrix ID here to get Admin access
+admins:
+  - "@sokhom:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+
+# --- ROOM DEFAULTS ---
+# (Note: Use commands in the room to ensure these apply)
+defaults:
+  threadify: false
+  nothreads: true
+  owner: "Production-Control-Active"
