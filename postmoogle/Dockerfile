@@ -1,9 +1,6 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Switch to root to install packages
-USER root
-
-# Install envsubst for environment variable substitution
+# Install envsubst for environment variable substitution (run as whatever user the base image uses)
 RUN apk add --no-cache gettext
 
 # Copy config template
