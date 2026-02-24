@@ -10,12 +10,12 @@ database:
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Disable Matrix-Native Threads globally
+# Disable Matrix-Native Threads
 threads: false
 
 # DEFAULT ROOM SETTINGS
 defaults:
   nothreads: true
   threadify: false
-  # Prove the config is working by changing the owner name
-  owner: "Production-Verified-Config"
+  # PROOF: When you type !pm help, it must show this exact owner
+  owner: "Production-Config-Loaded"
