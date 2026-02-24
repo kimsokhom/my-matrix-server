@@ -1,25 +1,19 @@
-# Postmoogle Production source-of-truth
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
-
-# The Pickle Key (must be exactly 32 characters)
-# This fixes the "pickle key must be provided" error
 secret: "12345678901234567890123456789012"
-
 database:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
-
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Core Bridge Settings
+# Disable bridge-wide threading
 threads: false
 
-# DEFAULT ROOM SETTINGS (The Fix for threading)
+# Force these defaults for all NEW rooms
 defaults:
-  nothreads: true
   threadify: false
-  # PROOF: When you type !pm help, it MUST show this exact owner
-  owner: "Production-Final-Source-Of-Truth"
+  nothreads: true
+  noreplies: true
+  owner: "Verified-Production-File"

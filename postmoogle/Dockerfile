@@ -1,12 +1,12 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Switch to root just to ensure we can write to the volume path
 USER 0
+# Create a folder that is NOT /data
+RUN mkdir -p /etc/postmoogle
+COPY config.yaml /etc/postmoogle/config.yaml
 
-# Copy your hardcoded config directly to the data folder
-COPY config.yaml /data/config.yaml
+# Point the bot to the safe location
+ENV POSTMOOGLE_CONFIG=/etc/postmoogle/config.yaml
 
-# Explicitly tell the bot where the file is
-ENV POSTMOOGLE_CONFIG=/data/config.yaml
-
-# The base image already has the entrypoint set to start the bot
+# Explicitly start the bot pointing to that file
+ENTRYPOINT ["/postmoogle", "-config", "/etc/postmoogle/config.yaml"]
