@@ -1,15 +1,21 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Use root for file operations
+# Install envsubst for environment variable substitution
 USER 0
+RUN apk add --no-cache gettext
 
-# Copy config to a safe temporary location
-COPY config.yaml /tmp/config.yaml
+# Copy config template
+COPY config.yaml /config.yaml.template
 
-# Set the Environment variable
+# Create startup script that generates config and starts bot
+RUN printf '#!/bin/sh\n\
+set -e\n\
+echo "Generating config from template..."\n\
+envsubst < /config.yaml.template > /data/config.yaml\n\
+echo "Config generated. Starting Postmoogle..."\n\
+cat /data/config.yaml\n\
+exec /postmoogle\n' > /start.sh && chmod +x /start.sh
+
 ENV POSTMOOGLE_CONFIG=/data/config.yaml
 
-# This command runs every time the container starts:
-# 1. It copies the config from /tmp to the live /data volume
-# 2. It starts the bot
-CMD cp /tmp/config.yaml /data/config.yaml && /postmoogle
+ENTRYPOINT ["/start.sh"]

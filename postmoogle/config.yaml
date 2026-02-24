@@ -1,17 +1,17 @@
 # Postmoogle Production Configuration
-homeserver: "http://synapse.railway.internal:8008"
-login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
-password: "RexformMail2024"
+homeserver: "${HOMESERVER_URL}"
+login: "${POSTMOOGLE_LOGIN}"
+password: "${POSTMOOGLE_PASSWORD}"
 
-# This fixes the "pickle key must be provided" error
-secret: "12345678901234567890123456789012"
+# Pickle key for encryption (must be exactly 32 characters)
+secret: "${POSTMOOGLE_SECRET}"
 
 database:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
 
 domains:
-  - "rexform-matrix.abrdns.com"
+  - "${POSTMOOGLE_DOMAIN}"
 
 # Disable Matrix-Native Threads globally
 threads: false
@@ -20,5 +20,3 @@ threads: false
 defaults:
   nothreads: true
   threadify: false
-  # PROOF OF LOAD:
-  owner: "Production-Config-Final-V1"
