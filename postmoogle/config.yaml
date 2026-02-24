@@ -1,26 +1,26 @@
-# Postmoogle Configuration
-homeserver: "https://your-synapse-server.com"
-login: "@postmoogle:your-server.com"
-password: "YourSecurePassword123"
+# --- SERVER CORE ---
+homeserver: "http://synapse.railway.internal:8008"
+login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+password: "RexformMail2024"
 
-# Encryption key (must be exactly 32 characters)
-secret: "12345678901234567890123456789012"
+# This matches cfg.DataSecret -> env.String("data.secret")
+data:
+  secret: "12345678901234567890123456789012"
 
-database:
+# --- DATABASE ---
+# Ensure this points to the Railway Volume path
+db:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
 
+# --- SMTP SETTINGS ---
 domains:
-  - "your-domain.com"
+  - "rexform-matrix.abrdns.com"
+port: "25"
+maxsize: 1024 # 1GB
 
+# --- BRIDGE BEHAVIOR ---
+# This is the server-level toggle for Matrix Threads
 threads: false
-
-defaults:
-  nothread: true
-
-mailbox:
-  prefix: ""
-  use_localpart: true
-
-logging:
-  level: "info"
+loglevel: "INFO"
+statusmsg: "Production Email Bridge"

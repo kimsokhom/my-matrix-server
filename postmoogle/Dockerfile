@@ -1,8 +1,12 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Copy config directly
-COPY config.yaml /data/config.yaml
+# 1. Scratch images have no /tmp or /etc by default. 
+# 2. We copy our config directly to the root.
+COPY config.yaml /config.yaml
 
-ENV POSTMOOGLE_CONFIG=/data/config.yaml
+# 3. Set the Environment Variable as a fallback
+ENV POSTMOOGLE_CONFIG=/config.yaml
 
-# The base image automatically runs /postmoogle
+# 4. Use JSON Exec Form (no shell involved).
+# This points to the binary path found in your 'main.go' logic (/bin/postmoogle)
+ENTRYPOINT ["/bin/postmoogle", "-config", "/config.yaml"]
