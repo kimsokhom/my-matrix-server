@@ -1,26 +1,27 @@
-# --- SERVER CORE ---
+# --- SERVER ACCESS ---
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# This matches cfg.DataSecret -> env.String("data.secret")
+# This MUST be nested like this for cfg.DataSecret (env.String("data.secret"))
 data:
   secret: "12345678901234567890123456789012"
 
 # --- DATABASE ---
-# Ensure this points to the Railway Volume path
 db:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
 
-# --- SMTP SETTINGS ---
+# --- SMTP ---
 domains:
   - "rexform-matrix.abrdns.com"
 port: "25"
-maxsize: 1024 # 1GB
 
-# --- BRIDGE BEHAVIOR ---
-# This is the server-level toggle for Matrix Threads
+# --- BRIDGE CONTROL ---
+# Global thread toggle
 threads: false
 loglevel: "INFO"
-statusmsg: "Production Email Bridge"
+
+# Replace this with your actual Matrix ID to get Admin control
+# admins:
+#   - "@sokhom:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
