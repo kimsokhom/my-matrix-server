@@ -31,7 +31,7 @@ loglevel: "INFO"
 
 # Admins
 admins:
-  - "@sokhom:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+  - "@*:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 
 # --- ROOM DEFAULTS ---
 # (Note: Use commands in the room to ensure these apply)
