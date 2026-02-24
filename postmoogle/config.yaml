@@ -3,7 +3,7 @@ homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# This is the "pickle key"
+# This fixes the "pickle key must be provided" error
 secret: "12345678901234567890123456789012"
 
 database:
@@ -13,12 +13,12 @@ database:
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Disable Matrix-Native Threads
+# Disable Matrix-Native Threads globally
 threads: false
 
 # DEFAULT ROOM SETTINGS
 defaults:
   nothreads: true
   threadify: false
-  # If this appears in !pm help, the config is finally loaded!
-  owner: "Config-V3-Success"
+  # PROOF OF LOAD:
+  owner: "Production-Config-Final-V1"

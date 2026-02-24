@@ -1,15 +1,15 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
+# Use root for file operations
 USER 0
 
-# Copy to a safe location that is NOT /data
-COPY config.yaml /etc/postmoogle.yaml
+# Copy config to a safe temporary location
+COPY config.yaml /tmp/config.yaml
 
-# Use the standard environment variable to point to the safe location
-ENV POSTMOOGLE_CONFIG=/etc/postmoogle.yaml
+# Set the Environment variable
+ENV POSTMOOGLE_CONFIG=/data/config.yaml
 
-# Set the workdir back to data for the database
-WORKDIR /data
-
-# Run the binary and explicitly point to the config
-ENTRYPOINT ["postmoogle", "-config", "/etc/postmoogle.yaml"]
+# This command runs every time the container starts:
+# 1. It copies the config from /tmp to the live /data volume
+# 2. It starts the bot
+CMD cp /tmp/config.yaml /data/config.yaml && /postmoogle
