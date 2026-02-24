@@ -3,7 +3,7 @@ homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# The missing key that caused the "pickle key" error:
+# This is the "pickle key"
 secret: "12345678901234567890123456789012"
 
 database:
@@ -16,9 +16,9 @@ domains:
 # Disable Matrix-Native Threads
 threads: false
 
-# DEFAULT ROOM SETTINGS 
+# DEFAULT ROOM SETTINGS
 defaults:
-  nothreads: true 
+  nothreads: true
   threadify: false
-  # PROOF: When you type !pm help, it must show this exact owner
-  owner: "Production-Config-Loaded-V2"
+  # If this appears in !pm help, the config is finally loaded!
+  owner: "Config-V3-Success"

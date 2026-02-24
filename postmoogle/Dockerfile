@@ -1,14 +1,15 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# Use root for file operations
 USER 0
 
-# Copy config to the root (outside the volume) to prevent overwriting
-COPY config.yaml /config.yaml
+# Copy to a safe location that is NOT /data
+COPY config.yaml /etc/postmoogle.yaml
 
-# Explicitly tell the bot to use this file via environment variables
-ENV POSTMOOGLE_CONFIG=/config.yaml
-ENV CONFIG=/config.yaml
+# Use the standard environment variable to point to the safe location
+ENV POSTMOOGLE_CONFIG=/etc/postmoogle.yaml
 
-# We let the base image's entrypoint run, but we pass the config flag
-CMD ["postmoogle", "-config", "/config.yaml"]
+# Set the workdir back to data for the database
+WORKDIR /data
+
+# Run the binary and explicitly point to the config
+ENTRYPOINT ["postmoogle", "-config", "/etc/postmoogle.yaml"]
