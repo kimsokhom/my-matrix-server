@@ -11,18 +11,25 @@ homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
+# Encryption secret (exactly 32 characters)
+data_secret: "12345678901234567890123456789012"
+
+# Database
 db:
   dialect: "sqlite3"
   dsn: "/data/postmoogle.db"
 
+# Email domains
 domains:
   - "rexform-matrix.abrdns.com"
 
-# --- BRIDGE BEHAVIOR ---
-threads: false
+# SMTP port
+port: 25
+
+# Logging
 loglevel: "INFO"
 
-# Add your Matrix ID here to get Admin access
+# Admins
 admins:
   - "@sokhom:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 
