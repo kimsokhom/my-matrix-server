@@ -13,7 +13,11 @@ domains:
 # Disable Matrix Native Threads globally
 threads: false
 
+# Disable thread replies from bot
+nothread: true
+
 # Set defaults for all NEW rooms created from now on
 defaults:
-  threadify: false
   nothreads: true
+  threadify: false
+  nothread: true
