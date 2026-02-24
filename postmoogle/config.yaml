@@ -1,24 +1,17 @@
-# Postmoogle Production Config
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# This MUST be 'datasecret' (no underscore) to fix the "pickle key" crash
-datasecret: "12345678901234567890123456789012"
+# Correct nested structure for 'data.secret'
+data:
+  secret: "12345678901234567890123456789012"
 
-database:
-  dialect: "sqlite3"
+db:
   dsn: "/data/postmoogle.db"
+  dialect: "sqlite3"
 
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Core Matrix Threading
-threads: false
-
-# DEFAULT ROOM SETTINGS (This solves your threading problem)
-defaults:
-  threadify: false # Do not use threads for email bodies
-  nothreads: true # Do not use Matrix-native threads for chains
-  # This owner string proves the file is being read correctly
-  owner: "Production-Fix-Final"
+# Note: 'defaults' is not supported by your version's code,
+# so it is omitted to avoid confusion.
