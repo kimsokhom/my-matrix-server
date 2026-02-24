@@ -1,17 +1,17 @@
 # Postmoogle Production Configuration
-homeserver: "${HOMESERVER_URL}"
+homeserver: "${POSTMOOGLE_HOMESERVER}"
 login: "${POSTMOOGLE_LOGIN}"
 password: "${POSTMOOGLE_PASSWORD}"
 
 # Pickle key for encryption (must be exactly 32 characters)
-secret: "${POSTMOOGLE_SECRET}"
+secret: "${POSTMOOGLE_DATA_SECRET}"
 
 database:
-  dialect: "sqlite3"
-  dsn: "/data/postmoogle.db"
+  dialect: "${POSTMOOGLE_DB_DIALECT}"
+  dsn: "${POSTMOOGLE_DB_DSN}"
 
 domains:
-  - "${POSTMOOGLE_DOMAIN}"
+  - "${POSTMOOGLE_DOMAINS}"
 
 # Disable Matrix-Native Threads globally
 threads: false
