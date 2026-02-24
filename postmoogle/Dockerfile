@@ -1,20 +1,13 @@
 FROM ghcr.io/etkecc/postmoogle:latest
 
-# 1. Create a minimal passwd file so Railway can find the "app" user
-# Scratch images are empty, so we must provide this file.
-COPY <<EOF /etc/passwd
-root:x:0:0:root:/root:/bin/sh
-app:x:1000:1000:app:/app:/bin/sh
-EOF
+# In a scratch image, we copy the .env to the root
+COPY .env /.env
 
-# 2. Copy your config file to the root
-COPY config.yaml /config.yaml
+# We copy the binary to the root (just in case)
+COPY --from=ghcr.io/etkecc/postmoogle:latest /bin/postmoogle /postmoogle
 
-# 3. Explicitly run as the user Railway is looking for
-USER 1000
+# Set the working directory to root so it finds /.env
+WORKDIR /
 
-# 4. Point the bot to the config file
-ENV POSTMOOGLE_CONFIG=/config.yaml
-
-# 5. Start the bot directly using the binary path from documentation
-ENTRYPOINT ["/bin/postmoogle", "-config", "/config.yaml"]
+# Start the bot. It will load the .env file automatically.
+ENTRYPOINT ["/postmoogle"]
