@@ -10,14 +10,16 @@ database:
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Disable Matrix Native Threads globally
+# Disable Matrix-Native Threads
 threads: false
 
-# Disable thread replies from bot
-nothread: true
-
-# Set defaults for all NEW rooms created from now on
+# DEFAULT ROOM SETTINGS
+# This is the correct logic for new rooms
 defaults:
-  nothreads: true
-  threadify: false
-  nothread: true
+  nothreads: true # Don't group emails into threads
+  threadify: false # Don't put email bodies in threads
+  noreplies: true # Don't "reply" to messages (removes the speech bubble icon)
+
+  # PROOF OF CONFIG: Change this to a unique name
+  # If !pm help shows this owner, you know the config file is working
+  owner: "Production-Admin"
