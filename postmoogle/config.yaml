@@ -1,10 +1,10 @@
-# Postmoogle Production Config (Scratch Image compatible)
+# Postmoogle Production Config
 homeserver: "http://synapse.railway.internal:8008"
 login: "@postmoogle:synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 password: "RexformMail2024"
 
-# This is the "pickle key" (Must be 32 chars)
-secret: "12345678901234567890123456789012"
+# This MUST be 'data_secret' (not 'secret') to fix the pickle error
+data_secret: "12345678901234567890123456789012"
 
 database:
   dialect: "sqlite3"
@@ -13,12 +13,12 @@ database:
 domains:
   - "rexform-matrix.abrdns.com"
 
-# Core Setting
+# Core Bridge Settings
 threads: false
 
-# DEFAULT ROOM SETTINGS (The Fix)
+# DEFAULT ROOM SETTINGS (This is where we solve your threading issue)
 defaults:
   nothreads: true
   threadify: false
-  # This owner change will prove the file is loaded
-  owner: "Scratch-Config-Final"
+  # Prove the file is working
+  owner: "Scratch-Fix-Verified"
