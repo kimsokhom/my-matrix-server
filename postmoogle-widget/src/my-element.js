@@ -1,66 +1,112 @@
 import { LitElement, html, css } from 'lit';
-// We import everything as 'MatrixWidget' to ensure we find the classes
 import * as MatrixWidget from 'matrix-widget-api';
 
 export class PostmoogleWidget extends LitElement {
   static properties = {
     apiStatus: { type: String },
+    isLoading: { type: Boolean },
+    to: { type: String },
+    subject: { type: String },
+    body: { type: String },
+    notification: { type: Object } // Added for non-alert feedback
   };
 
   constructor() {
     super();
     this.apiStatus = "Checking Backend...";
+    this.isLoading = false;
+    this.to = "";
+    this.subject = "";
+    this.body = "";
+    this.notification = { message: '', type: '' };
 
     try {
-      // 1. Initialize the Widget API using the namespace
       this.widgetApi = new MatrixWidget.WidgetApi();
-
-      // 2. Request permissions
-      // If the enum is undefined, we use the raw strings which always work
+      // Capabilities needed to read room context later
       this.widgetApi.requestCapability("org.matrix.msc2762.receive.event");
       this.widgetApi.requestCapability("m.read_state_event");
-
       this.widgetApi.start();
-      console.log("Widget API Started Successfully");
     } catch (err) {
-      console.error("Widget API failed to start:", err);
+      console.error("Widget API failed:", err);
     }
   }
 
   async firstUpdated() {
-    // 3. Test connection to your Backend API
-    // Replace this URL with your actual Railway Bridge domain!
     const BACKEND_URL = 'https://postmoogle-bridge-kim-sokhom-matrix-email-bridge.up.railway.app';
-
     try {
       const response = await fetch(`${BACKEND_URL}/api/v1/health`);
-      if (response.ok) {
-        this.apiStatus = "✅ Backend Online";
-      } else {
-        this.apiStatus = "⚠️ Backend Error";
-      }
+      this.apiStatus = response.ok ? "online" : "error";
     } catch (e) {
-      this.apiStatus = "❌ Cannot Reach Backend";
+      this.apiStatus = "offline";
     }
   }
 
   render() {
     return html`
-      <div class="card">
-        <h2>📧 Postmoogle Dashboard</h2>
-        <div class="status-bar">
-            Status: <strong>${this.apiStatus}</strong>
-        </div>
-        <hr>
-        <div class="actions">
-            <p>Ready to send an email via the Bridge API?</p>
-            <button @click=${this._sendTestEmail}>Send Test Email</button>
-        </div>
+      <div class="container">
+        <header class="header">
+          <div class="header-content">
+            <span class="icon">📧</span>
+            <h1>Postmoogle Dashboard</h1>
+          </div>
+          <div class="status ${this.apiStatus}">
+            <span class="status-dot"></span>
+            ${this._getStatusText()}
+          </div>
+        </header>
+
+        ${this.notification.message ? html`
+          <div class="notification ${this.notification.type}">
+            ${this.notification.message}
+          </div>
+        ` : ''}
+
+        <main class="main">
+          <div class="form-card">
+            <h2>Compose Email</h2>
+            
+            <div class="form-group">
+              <label>Recipient</label>
+              <input type="email" placeholder="boss@example.com" .value=${this.to} @input=${e => this.to = e.target.value} ?disabled=${this.isLoading} />
+            </div>
+
+            <div class="form-group">
+              <label>Subject</label>
+              <input type="text" placeholder="Project Update" .value=${this.subject} @input=${e => this.subject = e.target.value} ?disabled=${this.isLoading} />
+            </div>
+
+            <div class="form-group">
+              <label>Message</label>
+              <textarea rows="6" placeholder="Type your message..." .value=${this.body} @input=${e => this.body = e.target.value} ?disabled=${this.isLoading}></textarea>
+            </div>
+
+            <div class="button-group">
+              <button class="btn-primary" @click=${this._sendEmail} ?disabled=${this.isLoading || !this._isFormValid()}>
+                ${this.isLoading ? html`<span class="spinner"></span>` : 'Send Email'}
+              </button>
+              <button class="btn-secondary" @click=${this._clearForm} ?disabled=${this.isLoading}>Clear</button>
+            </div>
+          </div>
+        </main>
       </div>
     `;
   }
 
-  async _sendTestEmail() {
+  _getStatusText() {
+    const map = { online: 'Connected', offline: 'Disconnected', error: 'Server Error' };
+    return map[this.apiStatus] || 'Connecting...';
+  }
+
+  _isFormValid() {
+    return this.to.includes('@') && this.subject.length > 2 && this.body.length > 5;
+  }
+
+  _clearForm() {
+    this.to = ""; this.subject = ""; this.body = "";
+  }
+
+  async _sendEmail() {
+    this.isLoading = true;
     const BACKEND_URL = 'https://postmoogle-bridge-kim-sokhom-matrix-email-bridge.up.railway.app';
 
     try {
@@ -70,57 +116,275 @@ export class PostmoogleWidget extends LitElement {
           'X-Widget-Secret': 'ChooseAComplexPassword123',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          to: "test@example.com",
-          subject: "Sent from Matrix Widget",
-          body: "Hello! This was sent via the custom Lit UI."
-        })
+        body: JSON.stringify({ to: this.to, subject: this.subject, body: this.body })
       });
 
       if (res.ok) {
-        alert("Success: Email Queued by Bridge!");
+        this._showNotification('Email sent to queue!', 'success');
+        this._clearForm();
       } else {
-        alert("Failed: Check Backend Logs");
+        this._showNotification('Server rejected request', 'error');
       }
     } catch (err) {
-      alert("Error: Could not connect to API");
+      this._showNotification('Connection failed', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
+  _showNotification(message, type) {
+    this.notification = { message, type };
+    setTimeout(() => { this.notification = { message: '', type: '' }; }, 4000);
+  }
+
   static styles = css`
-    :host { 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        display: block; 
-        color: #333;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    .card { 
-        border: 1px solid #ddd; 
-        padding: 20px; 
-        background: white; 
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+
+    :host {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: block;
+      min-height: 100vh;
+      background: #f3f8f6;
     }
-    h2 { margin-top: 0; color: #0dbd8b; }
-    .status-bar { 
-        background: #f8f9fa; 
-        padding: 8px; 
-        border-radius: 4px; 
-        font-size: 0.9rem; 
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    button { 
-        background: #0dbd8b; 
-        color: white; 
-        border: none; 
-        padding: 12px 20px; 
-        border-radius: 6px; 
-        cursor: pointer; 
-        font-weight: bold;
-        transition: background 0.2s;
+
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
-    button:hover {
-        background: #09a377;
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
     }
-    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+
+    .icon {
+      font-size: 2rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: #17191c;
+      font-weight: 600;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500; 
+    }
+
+    .status.online {
+      background: #e8f5f0;
+      color: #03b381;
+    }
+
+    .status.offline {
+      background: #fee;
+      color: #d32f2f;
+    }
+
+    .status.error {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .main {
+      flex: 1;
+    }
+
+    .form-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      color: #17191c;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #525760;
+      font-size: 0.875rem;
+    }
+
+    input[type="email"],
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e3e6;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.2s;
+      font-family: inherit;
+      background: #fafafa;
+      color: #17191c;
+    }
+
+    input[type="email"]:focus,
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #03b381;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(3, 179, 129, 0.1);
+    }
+
+    input:disabled,
+    textarea:disabled {
+      background: #f5f5f5;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #8d97a5;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: #03b381;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #039770;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(3, 179, 129, 0.3);
+    }
+
+    .btn-secondary {
+      background: #e1e3e6;
+      color: #525760;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #d1d4d8;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #737780;
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 12px;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+
+    .notification {
+      padding: 12px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      animation: fadeIn 0.3s;
+    }
+    .notification.success { background: #e8f5f0; color: #03b381; border: 1px solid #03b381; }
+    .notification.error { background: #fee; color: #d32f2f; border: 1px solid #d32f2f; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
   `;
 }
 
