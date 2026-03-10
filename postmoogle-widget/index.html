@@ -8,29 +8,29 @@
   <!-- Standard Favicon -->
   <link rel="icon" type="image/png" href="/assets/email_icon.png" />
 
-  <!-- OpenGraph Tags (What Matrix/Element looks for) -->
-  <meta property="og:title" content="Postmoogle Email Bridge" />
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- OpenGraph Tags (for social sharing & Element preview) -->
+  <meta property="og:title" content="Postmoogle - Email Bridge" />
+  <meta property="og:description" content="Send and receive emails directly from Matrix" />
   <meta property="og:image"
     content="https://postmoogle-widget-kim-sokhom-matrix-email-bridge.up.railway.app/assets/email_icon.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
   <meta property="og:type" content="website" />
 
-  <title>Email Dashboard</title>
-  <!-- We import our javascript here -->
+  <title>Postmoogle - Email Bridge</title>
   <script type="module" src="/src/my-element.js"></script>
   <style>
     body {
       margin: 0;
-      background-color: #242424;
-      color: white;
+      background-color: #f3f8f6;
     }
   </style>
 </head>
 
 <body>
-  <!-- 
-       This is the important part! 
-       We use the tag name we defined in my-element.js 
-    -->
   <postmoogle-widget></postmoogle-widget>
 </body>
 
