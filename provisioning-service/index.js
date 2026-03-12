@@ -33,7 +33,7 @@ app.post('/api/provision', async (req, res) => {
         if (botUserId !== adminId) inviteList.push(botUserId);
 
         const roomId = await client.createRoom({
-            name: "Company Email",
+            name: "Email Service Room",
             topic: "Your official email service room",
             invite: inviteList, // Use the smart list
             preset: "private_chat",
