@@ -22,21 +22,33 @@ app.post('/api/provision', async (req, res) => {
     }
 
     try {
-        // Step 1: Room Creation
-        console.log(`[1/4] Creating room for ${userId}...`);
+        console.log(`[1/4] Preparing room for ${userId}...`);
+
+        // 1. Get the Admin's own ID so we don't invite ourselves
+        const adminId = await client.getUserId();
+
+        // 2. Build the invite list (only invite people who aren't the admin)
+        const inviteList = [];
+        if (userId !== adminId) inviteList.push(userId);
+        if (botUserId !== adminId) inviteList.push(botUserId);
+
         const roomId = await client.createRoom({
             name: "Company Email",
             topic: "Your official email service room",
-            invite: [userId, botUserId],
+            invite: inviteList, // Use the smart list
             preset: "private_chat",
         });
         console.log(`Success: Room ID is ${roomId}`);
 
-        // Step 2: Power Level
-        console.log(`[2/4] Setting power level for user...`);
-        await client.setUserPowerLevel(userId, roomId, 50);
+        // 3. Power Level (Only needed if the user isn't the Admin)
+        if (userId !== adminId) {
+            console.log(`[2/4] Setting power level for user...`);
+            await client.setUserPowerLevel(userId, roomId, 50);
+        } else {
+            console.log(`[2/4] User is Admin, skipping power level...`);
+        }
 
-        // Step 3: Widget
+        // 4. Widget
         console.log(`[3/4] Adding widget...`);
         const widgetId = "email_dashboard";
         const widgetContent = {
@@ -48,7 +60,7 @@ app.post('/api/provision', async (req, res) => {
         };
         await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
 
-        // Step 4: Layout
+        // 5. Layout (Auto-sidebar)
         console.log(`[4/4] Pinning sidebar...`);
         const layoutContent = {
             widgets: {
@@ -61,7 +73,6 @@ app.post('/api/provision', async (req, res) => {
         res.json({ success: true, roomId: roomId });
 
     } catch (err) {
-        // This prints the REAL error to Railway logs
         console.error("CRITICAL ERROR DURING PROVISIONING:");
         console.error(err.body || err);
         res.status(500).json({
