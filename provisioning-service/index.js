@@ -65,5 +65,5 @@ app.post('/api/provision', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PROVISIONING_SERVICE_PORT || 3000;
 app.listen(PORT, () => console.log(`Provisioning Service on port ${PORT}`));
