@@ -25,9 +25,8 @@ app.post('/api/provision', async (req, res) => {
         const adminId = await client.getUserId();
         const widgetId = "postmoogle_dashboard";
 
-        console.log(`[1/4] Creating Service Room for ${userId}...`);
+        console.log(`[1/5] Creating Service Room for ${userId}...`);
 
-        // 1. Create Room with immediate Moderator status for user
         const roomId = await client.createRoom({
             name: "Email Service Room",
             topic: "Official Email Service Room",
@@ -35,27 +34,27 @@ app.post('/api/provision', async (req, res) => {
             preset: "private_chat",
             power_level_content_override: {
                 users: {
-                    [userId]: 50,
+                    [userId]: 100, // Full power to ensure layout works
                     [adminId]: 100
                 }
             }
         });
 
-        // 2. Define and Send Widget (m.widget)
-        // Note: Adding 'id' inside content is crucial for the Layout link
+        // 2. Define Widget Content
         const widgetContent = {
             id: widgetId,
             url: widgetUrl,
             name: "Email Dashboard",
             type: "m.custom",
             avatar_url: widgetIcon,
+            creatorUserId: adminId,
             data: {}
         };
 
-        console.log(`[2/4] Sending m.widget state event: ${widgetId}`);
+        console.log(`[2/5] Sending m.widget: ${widgetId}`);
         await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
 
-        // 3. Define and Send Layout (io.element.widgets.layout)
+        // 3. Define Layout (Sidebar)
         const layoutContent = {
             widgets: {
                 [widgetId]: {
@@ -66,22 +65,32 @@ app.post('/api/provision', async (req, res) => {
             }
         };
 
-        console.log("[3/4] Sending io.element.widgets.layout...");
+        console.log("[3/5] Sending layout instruction...");
         await client.sendStateEvent(roomId, "io.element.widgets.layout", "", layoutContent);
 
         // 4. Set Room Avatar
-        console.log("[4/4] Setting room branding...");
         await client.sendStateEvent(roomId, "m.room.avatar", "", { url: widgetIcon });
 
-        console.log(`SUCCESS: Room ${roomId} provisioned.`);
+        // --- STEP 5: THE AUTO-TRUST MAGIC ---
+        // This tells the user's Element client to "Trust" the widget automatically
+        // so it opens WITHOUT the "Allow" button.
+        console.log(`[5/5] Forcing Auto-Trust for ${userId}...`);
+        await client.setRoomAccountData(userId, roomId, "m.widgets", {
+            [widgetId]: {
+                "content": widgetContent,
+                "id": widgetId,
+                "name": "Email Dashboard",
+                "type": "m.custom",
+                "url": widgetUrl
+            }
+        });
+
+        console.log(`SUCCESS: Room ${roomId} is fully automated.`);
         res.json({ success: true, roomId: roomId });
 
     } catch (err) {
         console.error("PROVISIONING FAILED:", err.body || err);
-        res.status(500).json({
-            error: "Failed to provision room",
-            details: err.body ? err.body.error : err.message
-        });
+        res.status(500).json({ error: "Failed to provision room", details: err.message });
     }
 });
 
