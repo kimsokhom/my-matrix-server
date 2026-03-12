@@ -22,59 +22,61 @@ app.post('/api/provision', async (req, res) => {
     }
 
     try {
-        console.log(`[1/4] Preparing room for ${userId}...`);
-
-        // 1. Get the Admin's own ID so we don't invite ourselves
         const adminId = await client.getUserId();
+        const widgetId = "postmoogle_dashboard"; // Consistent ID
 
-        // 2. Build the invite list (only invite people who aren't the admin)
-        const inviteList = [];
-        if (userId !== adminId) inviteList.push(userId);
-        if (botUserId !== adminId) inviteList.push(botUserId);
+        console.log(`[1/4] Creating Service Room for ${userId}...`);
 
+        // Create room with custom power levels so user is a Moderator (50) immediately
         const roomId = await client.createRoom({
-            name: "Email Service Room",
-            topic: "Your official email service room",
-            invite: inviteList, // Use the smart list
+            name: "Company Email",
+            topic: "Official Email Service Room",
+            invite: [userId === adminId ? "" : userId, botUserId].filter(i => i !== ""),
             preset: "private_chat",
+            power_level_content_override: {
+                users: {
+                    [userId]: 50, // Make user Moderator
+                    [adminId]: 100 // Keep yourself Admin
+                }
+            }
         });
-        console.log(`Success: Room ID is ${roomId}`);
 
-        // 3. Power Level (Only needed if the user isn't the Admin)
-        if (userId !== adminId) {
-            console.log(`[2/4] Setting power level for user...`);
-            await client.setUserPowerLevel(userId, roomId, 50);
-        } else {
-            console.log(`[2/4] User is Admin, skipping power level...`);
-        }
-
-        // 4. Widget
-        console.log(`[3/4] Adding widget...`);
-        const widgetId = "email_dashboard";
+        // 2. Define the Widget (m.widget)
+        // The STATE_KEY must be the widgetId
+        console.log(`[2/4] Registering widget: ${widgetId}`);
         const widgetContent = {
             url: widgetUrl,
-            name: "Email Dashboard",
+            name: "Postmoogle Dashboard",
             type: "m.custom",
             avatar_url: widgetIcon,
             data: {}
         };
         await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
 
-        // 5. Layout (Auto-sidebar)
-        console.log(`[4/4] Pinning sidebar...`);
+        // 3. Pin to Sidebar (io.element.widgets.layout)
+        // The key inside 'widgets' must match the widgetId above
+        console.log(`[3/4] Sending layout instruction...`);
         const layoutContent = {
             widgets: {
-                [widgetId]: { container: "right", width: 30, index: 0 }
+                [widgetId]: {
+                    container: "right",
+                    width: 30,
+                    index: 0
+                }
             }
         };
+        // State Key for layout must be empty string ""
         await client.sendStateEvent(roomId, "io.element.widgets.layout", "", layoutContent);
 
-        console.log("Provisioning Complete!");
+        // 4. Set Room Avatar (Optional: Make the room look pretty)
+        console.log(`[4/4] Setting room branding...`);
+        await client.sendStateEvent(roomId, "m.room.avatar", "", { url: widgetIcon });
+
+        console.log("SUCCESS: Room provisioned with auto-sidebar.");
         res.json({ success: true, roomId: roomId });
 
     } catch (err) {
-        console.error("CRITICAL ERROR DURING PROVISIONING:");
-        console.error(err.body || err);
+        console.error("PROVISIONING FAILED:", err.body || err);
         res.status(500).json({
             error: "Failed to provision room",
             details: err.body ? err.body.error : err.message
