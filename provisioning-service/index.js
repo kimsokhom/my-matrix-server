@@ -29,7 +29,7 @@ app.post('/api/provision', async (req, res) => {
 
         // Create room with custom power levels so user is a Moderator (50) immediately
         const roomId = await client.createRoom({
-            name: "Company Email",
+            name: "Email Service Room",
             topic: "Official Email Service Room",
             invite: [userId === adminId ? "" : userId, botUserId].filter(i => i !== ""),
             preset: "private_chat",
