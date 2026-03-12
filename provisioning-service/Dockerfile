@@ -1,18 +1,20 @@
+# Use a lightweight Node.js image
 FROM node:20-slim
 
+# Create app directory
 WORKDIR /app
 
-# Copy package files
+# Copy dependency definitions
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install libraries
+RUN npm install --production
 
-# Copy application code
+# Copy the rest of your code (index.js)
 COPY . .
 
-# Expose port (Railway will override with PORT env var)
-EXPOSE 3000
+# Vite/Express apps need to listen on the PORT variable provided by Railway
+ENV PORT=3000
 
 # Start the service
 CMD ["node", "index.js"]
