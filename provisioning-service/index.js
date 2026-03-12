@@ -22,20 +22,22 @@ app.post('/api/provision', async (req, res) => {
     }
 
     try {
-        console.log(`Creating Service Room for ${userId}...`);
-
-        // 1. Create the room
+        // Step 1: Room Creation
+        console.log(`[1/4] Creating room for ${userId}...`);
         const roomId = await client.createRoom({
             name: "Company Email",
             topic: "Your official email service room",
             invite: [userId, botUserId],
             preset: "private_chat",
         });
+        console.log(`Success: Room ID is ${roomId}`);
 
-        // 2. Give the user power to see the widget (Moderator level)
+        // Step 2: Power Level
+        console.log(`[2/4] Setting power level for user...`);
         await client.setUserPowerLevel(userId, roomId, 50);
 
-        // 3. Define the Widget (m.widget)
+        // Step 3: Widget
+        console.log(`[3/4] Adding widget...`);
         const widgetId = "email_dashboard";
         const widgetContent = {
             url: widgetUrl,
@@ -46,22 +48,26 @@ app.post('/api/provision', async (req, res) => {
         };
         await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
 
-        // 4. Pin to Sidebar (io.element.widgets.layout)
+        // Step 4: Layout
+        console.log(`[4/4] Pinning sidebar...`);
         const layoutContent = {
             widgets: {
-                [widgetId]: {
-                    container: "right",
-                    width: 30,
-                    index: 0
-                }
+                [widgetId]: { container: "right", width: 30, index: 0 }
             }
         };
         await client.sendStateEvent(roomId, "io.element.widgets.layout", "", layoutContent);
 
+        console.log("Provisioning Complete!");
         res.json({ success: true, roomId: roomId });
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to provision room" });
+        // This prints the REAL error to Railway logs
+        console.error("CRITICAL ERROR DURING PROVISIONING:");
+        console.error(err.body || err);
+        res.status(500).json({
+            error: "Failed to provision room",
+            details: err.body ? err.body.error : err.message
+        });
     }
 });
 
