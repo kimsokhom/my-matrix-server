@@ -86,5 +86,5 @@ app.post('/api/provision', async (req, res) => {
 });
 
 // Use Railway's standard PORT variable if possible
-const PORT = process.env.PORT || process.env.PROVISIONING_SERVICE_PORT || 3000;
+const PORT = process.env.PROVISIONING_SERVICE_PORT || 3000;
 app.listen(PORT, () => console.log(`Provisioning Service active on port ${PORT}`));
