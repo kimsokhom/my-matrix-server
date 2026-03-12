@@ -1,20 +1,17 @@
-# Use a lightweight Node.js image
 FROM node:20-slim
 
-# Create app directory
 WORKDIR /app
 
-# Copy dependency definitions
-COPY package*.json ./
+# Copy package files first (better for caching)
+COPY package.json ./
 
-# Install libraries
-RUN npm install --production
+# Install the dependencies we just added to package.json
+RUN npm install
 
-# Copy the rest of your code (index.js)
+# Copy your index.js
 COPY . .
 
-# Vite/Express apps need to listen on the PORT variable provided by Railway
+# Ensure the app uses the PORT Railway provides
 ENV PORT=3000
 
-# Start the service
 CMD ["node", "index.js"]
