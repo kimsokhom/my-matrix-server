@@ -28,7 +28,6 @@ database:
 
 suppress_key_server_warning: true
 
-# Added this to fix the long warning in your logs about matrix.org fallback
 trusted_key_servers:
   - server_name: "matrix.org"
 
@@ -39,20 +38,14 @@ registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 trusted_third_party_id_servers:
   - "${MAS_URL}"
 
-# ✅ THESE MUST BE UNCOMMENTED/TRUE to remove the red error in Element.
-# Synapse will redirect the registration flow to MAS.
-enable_registration: true
-enable_registration_without_verification: true
+# ❌ MUST BE FALSE when OAuth/MAS delegation is enabled
+enable_registration: false
+# enable_registration_without_verification: true
 
-# Password configuration (MUST be false when MAS is enabled)
+# ❌ MUST BE FALSE when OAuth/MAS delegation is enabled
 password_config:
   enabled: false
   local_authdb_enabled: false
-  # minimum_length: 1
-  # require_digit: false
-  # require_symbol: false
-  # require_uppercase: false
-  # require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
@@ -64,14 +57,7 @@ app_service_config_files:
 
 # oidc_providers:
 #   - idp_id: mas
-#     idp_name: "Matrix Authentication Service"
-#     discover: true
-#     issuer: "${MAS_URL}"
-#     client_id: "${MAS_CLIENT_ID}"
-#     client_secret: "${MAS_CLIENT_SECRET}"
-#     scopes: ["openid", "profile"]
-#     force_usage: true
-#     allow_existing_users_without_provider: false
+# ... (kept commented out)
 
 matrix_authentication_service:
   enabled: true
