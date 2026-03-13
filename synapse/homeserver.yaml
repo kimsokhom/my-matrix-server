@@ -27,6 +27,11 @@ database:
     cp_max: 10
 
 suppress_key_server_warning: true
+
+# Added this to fix the long warning in your logs about matrix.org fallback
+trusted_key_servers:
+  - server_name: "matrix.org"
+
 macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
@@ -38,9 +43,9 @@ trusted_third_party_id_servers:
 # enable_registration: true
 # enable_registration_without_verification: true
 
-# Password configuration (Effectively ignored when MAS is enabled, but good to keep disabled)
+# Password configuration (MUST be false when MAS is enabled)
 password_config:
-  enabled: true
+  enabled: false
   local_authdb_enabled: false
   # minimum_length: 1
   # require_digit: false
