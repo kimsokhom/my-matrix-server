@@ -35,4 +35,19 @@ templates:
   assets_manifest: /usr/local/share/mas-cli/manifest.json
 
 branding:
-  service_name: "My Matrix Server"
+  service_name: "Company Chat"
+  logo_uri: "https://example.com/logo.png" # Optional: your logo
+
+# ========== PASSWORD RESET & EMAIL ==========
+password_expiry_enabled: false
+password_change_expiry: null
+
+# Optional: Configure email for password resets
+email:
+  from: "noreply@example.com"
+  smtp:
+    host: "${SMTP_HOST}"
+    port: 587
+    username: "${SMTP_USER}"
+    password: "${SMTP_PASSWORD}"
+    use_tls: true

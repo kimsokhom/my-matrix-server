@@ -27,22 +27,14 @@ database:
     cp_max: 10
 
 suppress_key_server_warning: true
-
-trusted_key_servers:
-  - server_name: "matrix.org"
-
 macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
-trusted_third_party_id_servers:
-  - "${MAS_URL}"
-
-# ❌ MUST BE FALSE when OAuth/MAS delegation is enabled
+# ========== DISABLE LOCAL AUTH (MAS only) ==========
 enable_registration: false
-# enable_registration_without_verification: true
+enable_registration_without_verification: false
 
-# ❌ MUST BE FALSE when OAuth/MAS delegation is enabled
 password_config:
   enabled: false
   local_authdb_enabled: false
@@ -55,11 +47,16 @@ report_stats: false
 app_service_config_files:
   - /etc/synapse/registration.yaml
 
-# oidc_providers:
-#   - idp_id: mas
-# ... (kept commented out)
-
-matrix_authentication_service:
-  enabled: true
-  endpoint: "${MAS_URL}"
-  secret: "${MAS_SHARED_SECRET}"
+# ========== ENABLE OIDC (MAS Authentication) ==========
+oidc_providers:
+  - idp_id: mas
+    idp_name: "Matrix Authentication Service"
+    discover: true
+    issuer: "${MAS_URL}"
+    client_id: "${MAS_CLIENT_ID}"
+    client_secret: "${MAS_CLIENT_SECRET}"
+    scopes: ["openid", "profile"]
+    user_mapping_provider:
+      config:
+        localpart_template: "{{ user.preferred_username }}"
+        display_name_template: "{{ user.name }}"
