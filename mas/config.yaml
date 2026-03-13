@@ -19,16 +19,16 @@ secrets:
   encryption: "${MAS_ENCRYPTION_SECRET}"
 
 matrix:
-  homeserver: "${SYNAPSE_URL}"
+  homeserver: "${SERVER_NAME}"
   secret: "${MAS_SHARED_SECRET}"
   endpoint: "${SYNAPSE_URL}"
 
-clients:
-  - client_id: "${MAS_CLIENT_ID}"
-    client_auth_method: "client_secret_basic"
-    client_secret: "${MAS_CLIENT_SECRET}"
-    redirect_uris:
-      - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
+# clients:
+#   - client_id: "${MAS_CLIENT_ID}"
+#     client_auth_method: "client_secret_basic"
+#     client_secret: "${MAS_CLIENT_SECRET}"
+#     redirect_uris:
+#       - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
 
 templates:
   path: /usr/local/share/mas-cli/templates

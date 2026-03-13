@@ -1,9 +1,14 @@
 {
   "default_server_config": {
     "m.homeserver": {
-      "base_url": "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app",
-      "server_name": "synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+      "base_url": "https://${SERVER_NAME}",
+      "server_name": "${SERVER_NAME}"
     }
+  },
+  "disable_custom_urls": true,
+  "disable_guests": true,
+  "sso_redirect_options": {
+    "immediate": true
   },
   "brand": "Company Chat",
   "integrations_ui_url": "https://scalar.vector.im/",
