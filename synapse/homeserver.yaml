@@ -31,22 +31,23 @@ macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
-# Uncomment and configure trusted_third_party_id_servers
 trusted_third_party_id_servers:
   - "${MAS_URL}"
 
-enable_registration: true
-enable_registration_without_verification: true
+# Comment out enable_registration to prevent local registration
+# enable_registration: true
+# enable_registration_without_verification: true # This will also be effectively disabled by the above
 
-# Password configuration (you might want to disable local password auth if using MAS exclusively)
-# password_config:
-#   enabled: true
-#   local_authdb_enabled: true # Consider setting to false if MAS is your primary auth
-#   minimum_length: 1
-#   require_digit: false
-#   require_symbol: false
-#   require_uppercase: false
-#   require_lowercase: false
+# Password configuration
+password_config:
+  enabled: true
+  # Set local_authdb_enabled to false to disable local password authentication
+  local_authdb_enabled: false
+  minimum_length: 1
+  require_digit: false
+  require_symbol: false
+  require_uppercase: false
+  require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
@@ -56,7 +57,6 @@ report_stats: false
 app_service_config_files:
   - /etc/synapse/registration.yaml
 
-# Uncomment and configure oidc_providers for MAS
 oidc_providers:
   - idp_id: mas
     idp_name: "Matrix Authentication Service"
@@ -65,7 +65,7 @@ oidc_providers:
     client_id: "${MAS_CLIENT_ID}"
     client_secret: "${MAS_CLIENT_SECRET}"
     scopes: ["openid", "profile"]
-    # Optional: If you want to require users to register via OIDC, set `force_usage` to true
-    # force_usage: true
-    # Optional: If you want to allow local password accounts alongside OIDC, keep `allow_existing_users_without_provider` true
+    # Add force_usage: true to mandate MAS authentication
+    force_usage: true
+    # Also consider allowing existing users without the provider if you have old local accounts
     # allow_existing_users_without_provider: true
