@@ -38,14 +38,10 @@ trusted_third_party_id_servers:
 # enable_registration: true
 # enable_registration_without_verification: true
 
-# Password configuration
+# Password configuration (Effectively ignored when MAS is enabled, but good to keep disabled)
 password_config:
   enabled: true
-  # Set local_authdb_enabled to false to remove username/password login fields.
-  # This also effectively disables local registration if enable_registration is true,
-  # but explicitly commenting out enable_registration is clearer.
   local_authdb_enabled: false
-  # The following settings for password complexity are irrelevant if local_authdb_enabled is false
   # minimum_length: 1
   # require_digit: false
   # require_symbol: false
@@ -60,18 +56,18 @@ report_stats: false
 app_service_config_files:
   - /etc/synapse/registration.yaml
 
-oidc_providers:
-  - idp_id: mas
-    idp_name: "Matrix Authentication Service"
-    discover: true
-    issuer: "${MAS_URL}"
-    client_id: "${MAS_CLIENT_ID}"
-    client_secret: "${MAS_CLIENT_SECRET}"
-    scopes: ["openid", "profile"]
-    # force_usage: true makes MAS the only *available* authentication method for new registrations/logins.
-    force_usage: true
-    # Setting allow_existing_users_without_provider to false means even existing local accounts
-    # will need to be linked to a MAS account or effectively can't log in directly.
-    # If you want existing local users to still be able to log in with their old credentials,
-    # set this to true. For MAS-only, set to false.
-    allow_existing_users_without_provider: false
+# oidc_providers:
+#   - idp_id: mas
+#     idp_name: "Matrix Authentication Service"
+#     discover: true
+#     issuer: "${MAS_URL}"
+#     client_id: "${MAS_CLIENT_ID}"
+#     client_secret: "${MAS_CLIENT_SECRET}"
+#     scopes: ["openid", "profile"]
+#     force_usage: true
+#     allow_existing_users_without_provider: false
+
+matrix_authentication_service:
+  enabled: true
+  endpoint: "${MAS_URL}"
+  secret: "${MAS_SHARED_SECRET}"
