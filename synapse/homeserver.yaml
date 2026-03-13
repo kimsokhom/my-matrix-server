@@ -39,9 +39,10 @@ registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 trusted_third_party_id_servers:
   - "${MAS_URL}"
 
-# Comment out enable_registration entirely to remove the local registration path
-# enable_registration: true
-# enable_registration_without_verification: true
+# ✅ THESE MUST BE UNCOMMENTED/TRUE to remove the red error in Element.
+# Synapse will redirect the registration flow to MAS.
+enable_registration: true
+enable_registration_without_verification: true
 
 # Password configuration (MUST be false when MAS is enabled)
 password_config:
