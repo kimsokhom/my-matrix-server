@@ -31,21 +31,22 @@ macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
-# trusted_third_party_id_servers:
-#   - "${MAS_URL}"
+# Uncomment and configure trusted_third_party_id_servers
+trusted_third_party_id_servers:
+  - "${MAS_URL}"
 
 enable_registration: true
 enable_registration_without_verification: true
 
-# Password configuration
-password_config:
-  enabled: true
-  local_authdb_enabled: true
-  minimum_length: 1
-  require_digit: false
-  require_symbol: false
-  require_uppercase: false
-  require_lowercase: false
+# Password configuration (you might want to disable local password auth if using MAS exclusively)
+# password_config:
+#   enabled: true
+#   local_authdb_enabled: true # Consider setting to false if MAS is your primary auth
+#   minimum_length: 1
+#   require_digit: false
+#   require_symbol: false
+#   require_uppercase: false
+#   require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
@@ -55,11 +56,16 @@ report_stats: false
 app_service_config_files:
   - /etc/synapse/registration.yaml
 
-# oidc_providers:
-#   - idp_id: mas
-#     idp_name: "Matrix Authentication Service"
-#     discover: true
-#     issuer: "${MAS_URL}"
-#     client_id: "${MAS_CLIENT_ID}"
-#     client_secret: "${MAS_CLIENT_SECRET}"
-#     scopes: ["openid", "profile"]
+# Uncomment and configure oidc_providers for MAS
+oidc_providers:
+  - idp_id: mas
+    idp_name: "Matrix Authentication Service"
+    discover: true
+    issuer: "${MAS_URL}"
+    client_id: "${MAS_CLIENT_ID}"
+    client_secret: "${MAS_CLIENT_SECRET}"
+    scopes: ["openid", "profile"]
+    # Optional: If you want to require users to register via OIDC, set `force_usage` to true
+    # force_usage: true
+    # Optional: If you want to allow local password accounts alongside OIDC, keep `allow_existing_users_without_provider` true
+    # allow_existing_users_without_provider: true
