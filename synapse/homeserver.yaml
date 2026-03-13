@@ -31,18 +31,21 @@ macaroon_secret_key: "${MACAROON_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
-# --- NATIVE MAS INTEGRATION (MSC3861) ---
-matrix_authentication_service:
-  enabled: true
-  endpoint: "${MAS_URL}" # URL where Synapse can reach MAS (Railway internal URL is best)
-  secret: "${MAS_SHARED_SECRET}" # Must match matrix.secret in MAS config
+# trusted_third_party_id_servers:
+#   - "${MAS_URL}"
 
-# Disable Synapse's built-in registration and passwords completely
-enable_registration: false
+enable_registration: true
+enable_registration_without_verification: true
 
+# Password configuration
 password_config:
-  enabled: false
-  local_authdb_enabled: false
+  enabled: true
+  local_authdb_enabled: true
+  minimum_length: 1
+  require_digit: false
+  require_symbol: false
+  require_uppercase: false
+  require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
