@@ -24,13 +24,14 @@ app.post('/api/provision', async (req, res) => {
         const adminId = await client.getUserId();
         const widgetId = "postmoogle_dashboard";
 
-        console.log(`[1/4] Creating Service Room for ${userId}...`);
+        console.log(`[1/5] Creating Service Room (Without User)...`);
 
-        // 1. Create Room (User is Admin/100 immediately)
+        // 1. Create Room ONLY with the Bot first. 
+        // We pre-assign power level 100 to the user so they have rights when they join.
         const roomId = await client.createRoom({
             name: "Email Service Room",
             topic: "Official Email Service Room",
-            invite: [userId === adminId ? "" : userId, botUserId].filter(i => i !== ""),
+            invite: [botUserId].filter(i => i !== ""),
             preset: "private_chat",
             power_level_content_override: {
                 users: {
@@ -40,7 +41,7 @@ app.post('/api/provision', async (req, res) => {
             }
         });
 
-        // 2. Define Widget (Added 'id' and 'creatorUserId' for better Element compatibility)
+        // 2. Define Widget 
         const widgetContent = {
             id: widgetId,
             url: widgetUrl,
@@ -51,10 +52,10 @@ app.post('/api/provision', async (req, res) => {
             data: {}
         };
 
-        console.log(`[2/4] Sending m.widget state event...`);
+        console.log(`[2/5] Sending m.widget state event...`);
         await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
 
-        // 3. Define Layout (Pins sidebar to the right)
+        // 3. Define Layout 
         const layoutContent = {
             widgets: {
                 [widgetId]: {
@@ -65,12 +66,19 @@ app.post('/api/provision', async (req, res) => {
             }
         };
 
-        console.log("[3/4] Sending io.element.widgets.layout...");
+        console.log("[3/5] Sending io.element.widgets.layout...");
         await client.sendStateEvent(roomId, "io.element.widgets.layout", "", layoutContent);
 
-        // 4. Set Room Avatar (Makes the sidebar look professional)
-        console.log("[4/4] Setting room branding...");
+        // 4. Set Room Avatar
+        console.log("[4/5] Setting room branding...");
         await client.sendStateEvent(roomId, "m.room.avatar", "", { url: widgetIcon });
+
+        // 5. FINALLY, Invite the user!
+        // Now when they join, the room state is already fully built.
+        console.log(`[5/5] Inviting user ${userId}...`);
+        if (userId !== adminId) {
+            await client.inviteUser(userId, roomId);
+        }
 
         console.log(`SUCCESS: Room ${roomId} provisioned.`);
         res.json({ success: true, roomId: roomId });

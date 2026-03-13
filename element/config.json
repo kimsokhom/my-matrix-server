@@ -1,0 +1,19 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://synapse-production-e1f9.up.railway.app",
+      "server_name": "synapse-production-e1f9.up.railway.app"
+    }
+  },
+  "brand": "Company Chat",
+  "integrations_ui_url": "https://scalar.vector.im/",
+  "integrations_rest_url": "https://scalar.vector.im/api",
+  "integrations_widgets_urls": [
+    "https://scalar.vector.im/api",
+    "https://postmoogle-widget-kim-sokhom-matrix-email-bridge.up.railway.app"
+  ],
+  "default_theme": "light",
+  "room_directory": {
+    "servers": ["synapse-production-e1f9.up.railway.app"]
+  }
+}
