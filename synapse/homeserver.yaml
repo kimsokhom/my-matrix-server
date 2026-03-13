@@ -34,20 +34,23 @@ registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 trusted_third_party_id_servers:
   - "${MAS_URL}"
 
-# Comment out enable_registration to prevent local registration
+# Comment out enable_registration entirely to remove the local registration path
 # enable_registration: true
-# enable_registration_without_verification: true # This will also be effectively disabled by the above
+# enable_registration_without_verification: true
 
 # Password configuration
 password_config:
   enabled: true
-  # Set local_authdb_enabled to false to disable local password authentication
+  # Set local_authdb_enabled to false to remove username/password login fields.
+  # This also effectively disables local registration if enable_registration is true,
+  # but explicitly commenting out enable_registration is clearer.
   local_authdb_enabled: false
-  minimum_length: 1
-  require_digit: false
-  require_symbol: false
-  require_uppercase: false
-  require_lowercase: false
+  # The following settings for password complexity are irrelevant if local_authdb_enabled is false
+  # minimum_length: 1
+  # require_digit: false
+  # require_symbol: false
+  # require_uppercase: false
+  # require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
@@ -65,7 +68,10 @@ oidc_providers:
     client_id: "${MAS_CLIENT_ID}"
     client_secret: "${MAS_CLIENT_SECRET}"
     scopes: ["openid", "profile"]
-    # Add force_usage: true to mandate MAS authentication
+    # force_usage: true makes MAS the only *available* authentication method for new registrations/logins.
     force_usage: true
-    # Also consider allowing existing users without the provider if you have old local accounts
-    # allow_existing_users_without_provider: true
+    # Setting allow_existing_users_without_provider to false means even existing local accounts
+    # will need to be linked to a MAS account or effectively can't log in directly.
+    # If you want existing local users to still be able to log in with their old credentials,
+    # set this to true. For MAS-only, set to false.
+    allow_existing_users_without_provider: false
