@@ -39,7 +39,7 @@ enable_registration_without_verification: true
 
 # Password configuration
 password_config:
-  enabled: true
+  enabled: false
   local_authdb_enabled: true
   minimum_length: 1
   require_digit: false
@@ -63,3 +63,6 @@ oidc_providers:
     client_id: "${MAS_CLIENT_ID}"
     client_secret: "${MAS_CLIENT_SECRET}"
     scopes: ["openid", "profile"]
+    
+oidc_config:
+  backchannel_logout_enabled: true
