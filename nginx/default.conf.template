@@ -19,7 +19,7 @@ server {
     }
 
     # 2. Route all other Matrix API traffic to Synapse
-    location ~ ^(/_matrix|/_synapse/client) {
+    location ~ ^(/_matrix|/_synapse) {
         proxy_pass ${SYNAPSE_INTERNAL_URL};
     }
 
