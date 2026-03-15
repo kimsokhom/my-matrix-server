@@ -34,18 +34,22 @@ registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 # trusted_third_party_id_servers:
 #   - "${MAS_URL}"
 
-enable_registration: true
-enable_registration_without_verification: true
+# Disable direct Synapse registration; MAS handles this now
+enable_registration: false
+
+# # Old registration settings (disabled; MAS is now auth provider)
+# enable_registration_without_verification: true
 
 # Password configuration
+# Disable local password database
 password_config:
   enabled: false
-  local_authdb_enabled: true
-  minimum_length: 1
-  require_digit: false
-  require_symbol: false
-  require_uppercase: false
-  require_lowercase: false
+  localdb_enabled: false
+  # minimum_length: 1
+  # require_digit: false
+  # require_symbol: false
+  # require_uppercase: false
+  # require_lowercase: false
 
 serve_server_well_known: true
 serve_client_well_known: true
@@ -55,14 +59,18 @@ report_stats: false
 app_service_config_files:
   - /etc/synapse/registration.yaml
 
-oidc_providers:
-  - idp_id: mas
-    idp_name: "Matrix Authentication Service"
-    discover: true
-    issuer: "${MAS_URL}"
-    client_id: "${MAS_CLIENT_ID}"
-    client_secret: "${MAS_CLIENT_SECRET}"
-    scopes: ["openid", "profile"]
-    
-oidc_config:
-  backchannel_logout_enabled: true
+# NATIVE MAS DELEGATION:
+matrix_authentication_service:
+  enabled: true
+  endpoint: "${MAS_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
+  secret: "${MAS_SHARED_SECRET}"
+
+# # OIDC PROVIDER CONFIGURATION (alternative method - commented out in favor of native MAS delegation)
+# oidc_providers:
+#   - idp_id: mas
+#     idp_name: "Matrix Authentication Service"
+#     discover: true
+#     issuer: "${MAS_URL}"
+#     client_id: "${MAS_CLIENT_ID}"
+#     client_secret: "${MAS_CLIENT_SECRET}"
+#     scopes: ["openid", "profile"]

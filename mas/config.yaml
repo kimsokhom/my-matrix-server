@@ -11,10 +11,6 @@ http:
         - name: assets
       binds:
         - address: "0.0.0.0:8008"
-      # Add cookie settings for HTTPS
-      cookie:
-        secure: true
-        same_site_policy: "Strict"
 
 database:
   uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
@@ -23,19 +19,17 @@ secrets:
   encryption: "${MAS_ENCRYPTION_SECRET}"
 
 matrix:
-  homeserver: "${SYNAPSE_URL}"
-  secret: "${MAS_SHARED_SECRET}"
-  endpoint: "${SYNAPSE_URL}"
-  # Configure user mapping
-  user_provider:
-    localpart_template: "{{ user.sub }}" # Use OIDC 'sub' as Matrix username
+  homeserver: "${SERVER_NAME}" # Must match `server_name` in Synapse config, NOT a URL
+  secret: "${MAS_SHARED_SECRET}" # Must match the secret in Synapse's `matrix_authentication_service`
+  endpoint: "${SYNAPSE_URL}" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
 
-clients:
-  - client_id: "${MAS_CLIENT_ID}"
-    client_auth_method: "client_secret_basic"
-    client_secret: "${MAS_CLIENT_SECRET}"
-    redirect_uris:
-      - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
+# OIDC Client configuration (commented out - using native MAS delegation instead)
+# clients:
+#   - client_id: "${MAS_CLIENT_ID}"
+#     client_auth_method: "client_secret_basic"
+#     client_secret: "${MAS_CLIENT_SECRET}"
+#     redirect_uris:
+#       - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
 
 templates:
   path: /usr/local/share/mas-cli/templates

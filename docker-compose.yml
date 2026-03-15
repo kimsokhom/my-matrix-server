@@ -55,6 +55,24 @@ services:
         "server_name":"${SERVER_NAME}"},
         "m.identity_server":{"base_url":"https://vector.im"}}}
 
+  # --- NGINX (Reverse Proxy) --- Add this block!
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      # Pass the variables to Nginx
+      - SERVER_NAME=${SERVER_NAME}
+      - MAS_INTERNAL_URL=http://mas.railway.internal:8008
+      - SYNAPSE_INTERNAL_URL=http://synapse.railway.internal:8008
+    volumes:
+      # Mount to Nginx's special template folder
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      - synapse
+      - mas
+
 volumes:
   synapse-data:
   telegram-data:

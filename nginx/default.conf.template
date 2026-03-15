@@ -1,0 +1,30 @@
+server {
+    # Railway edge proxy listens on 443 and routes to port 80 internally
+    listen 80; 
+    
+    # Injected from .env
+    server_name ${SERVER_NAME};
+
+    # Let the backend know the user is actually connecting via HTTPS
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    
+    # Allow large file uploads in Matrix
+    client_max_body_size 50M;
+
+    # 1. Route specific Matrix auth paths to MAS
+    location ~ ^/_matrix/client/(api/v1|r0|v3|unstable)/(login|logout|refresh) {
+        proxy_pass ${MAS_INTERNAL_URL};
+    }
+
+    # 2. Route all other Matrix API traffic to Synapse
+    location ~ ^(/_matrix|/_synapse/client) {
+        proxy_pass ${SYNAPSE_INTERNAL_URL};
+    }
+
+    # 3. Route everything else (MAS Web UI, OIDC endpoints) to MAS
+    location / {
+        proxy_pass ${MAS_INTERNAL_URL};
+    }
+}
