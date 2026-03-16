@@ -1,16 +1,11 @@
 server {
-    # Railway edge proxy listens on 443 and routes to port 80 internally
-    listen 80; 
-    
-    # Injected from .env
+    listen 80;
     server_name ${SERVER_NAME};
 
-    # Let the backend know the user is actually connecting via HTTPS
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     
-    # Allow large file uploads in Matrix
     client_max_body_size 50M;
 
     # 1. Route specific Matrix auth paths to MAS
@@ -18,19 +13,15 @@ server {
         proxy_pass ${MAS_INTERNAL_URL};
     }
 
-    # 2. Route Matrix Client Discovery to Synapse
-    # (So Element Web can auto-discover your server correctly)
-    location ~ ^/.well-known/matrix/ {
+    # 2. Route Matrix Client Discovery & API to Synapse
+    location ~ ^(/_matrix|/_synapse|/.well-known/matrix/) {
         proxy_pass ${SYNAPSE_INTERNAL_URL};
     }
 
-    # 3. Route all other Matrix API traffic to Synapse
-    location ~ ^(/_matrix|/_synapse) {
-        proxy_pass ${SYNAPSE_INTERNAL_URL};
-    }
-
-    # 4. Route everything else (MAS Web UI, OIDC endpoints) to MAS
+    # 3. Serve the Element Call Frontend (THE FIX)
     location / {
-        proxy_pass ${MAS_INTERNAL_URL};
+        root /app;           # This is where Element Call is installed
+        index index.html;
+        try_files $uri $uri/ /index.html; # Required for Single Page Apps
     }
 }

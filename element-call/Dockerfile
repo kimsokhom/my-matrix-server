@@ -1,7 +1,10 @@
-# Use the official image - this avoids the download/tar errors completely
 FROM ghcr.io/element-hq/element-call:latest
 
-# Copy your configuration into the image
+# Copy the Element Call web config
 COPY config.json /app/config.json
+
+# Copy your Nginx proxy config into the TEMPLATES folder
+# (Nginx will automatically replace the ${VARS} and move it to the right place)
+COPY default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
