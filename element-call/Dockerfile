@@ -1,19 +1,16 @@
-# Stage 1: Get files from official image
+# Stage 1: Get files from the official image
 FROM ghcr.io/element-hq/element-call:latest AS element-files
 
-# Stage 2: Standard Nginx
+# Stage 2: Standard Nginx (This fixes the 'Permission Denied' error)
 FROM nginx:alpine
 
-# 1. Copy web files to the standard Nginx HTML folder
-COPY --from=element-files /app /usr/share/nginx/html
+# 1. Copy web files from official image
+COPY --from=element-files /app /app
 
-# 2. Copy your config into that same folder
-COPY element-call/config.json /usr/share/nginx/html/config.json
+# 2. Copy config (Relative to /element-call)
+COPY config.json /app/config.json
 
-# 3. Copy the Nginx template
+# 3. Copy the template (Relative to /element-call)
 COPY default.conf.template /etc/nginx/templates/default.conf.template
-
-# 4. Fix permissions so Nginx can definitely read the files
-RUN chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 80
