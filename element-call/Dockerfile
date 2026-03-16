@@ -4,6 +4,6 @@ FROM ghcr.io/element-hq/element-call:latest
 COPY element-call/config.json /app/config.json
 
 # Now we can reach the nginx folder without using ../
-COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY ../nginx/default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
