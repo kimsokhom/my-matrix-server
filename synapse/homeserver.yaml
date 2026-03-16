@@ -65,10 +65,18 @@ matrix_authentication_service:
   endpoint: "${MAS_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
   secret: "${MAS_SHARED_SECRET}"
 
+
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
     - type: "livekit"
-      livekit_service_url: "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app/livekit/jwt"
+      livekit_service_url: "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app"
+
+
+experimental_features:
+  # Required for Element Call / MatrixRTC
+  msc3266_enabled: true
+  msc4143_enabled: true
+  msc4222_enabled: true
 
 # # OIDC PROVIDER CONFIGURATION (alternative method - commented out in favor of native MAS delegation)
 # oidc_providers:

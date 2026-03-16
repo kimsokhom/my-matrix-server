@@ -6,6 +6,7 @@
     }
   },
   "livekit": {
-    "livekit_service_url": "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app"
+    "livekit_service_url": "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app",
+    "default_livekit_url": "wss://element-call-config-scri513w.livekit.cloud"
   }
 }
