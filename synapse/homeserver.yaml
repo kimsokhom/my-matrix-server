@@ -62,7 +62,8 @@ app_service_config_files:
 # NATIVE MAS DELEGATION:
 matrix_authentication_service:
   enabled: true
-  endpoint: "${MAS_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
+  # endpoint: "${MAS_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
+  endpoint: "http://mas-test.railway.internal:8008" # Internal URL where Synapse can reach MAS (e.g. http://mas:8008)
   secret: "${MAS_SHARED_SECRET}"
 
 # # OIDC PROVIDER CONFIGURATION (alternative method - commented out in favor of native MAS delegation)
