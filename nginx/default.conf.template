@@ -18,12 +18,18 @@ server {
         proxy_pass ${MAS_INTERNAL_URL};
     }
 
-    # 2. Route all other Matrix API traffic to Synapse
+    # 2. Route Matrix Client Discovery to Synapse
+    # (So Element Web can auto-discover your server correctly)
+    location ~ ^/.well-known/matrix/ {
+        proxy_pass ${SYNAPSE_INTERNAL_URL};
+    }
+
+    # 3. Route all other Matrix API traffic to Synapse
     location ~ ^(/_matrix|/_synapse) {
         proxy_pass ${SYNAPSE_INTERNAL_URL};
     }
 
-    # 3. Route everything else (MAS Web UI, OIDC endpoints) to MAS
+    # 4. Route everything else (MAS Web UI, OIDC endpoints) to MAS
     location / {
         proxy_pass ${MAS_INTERNAL_URL};
     }
