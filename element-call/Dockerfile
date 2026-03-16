@@ -5,6 +5,6 @@ COPY config.json /app/config.json
 
 # Copy your Nginx proxy config into the TEMPLATES folder
 # (Nginx will automatically replace the ${VARS} and move it to the right place)
-COPY default.conf.template /etc/nginx/templates/default.conf.template
+COPY ../nginx/default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
