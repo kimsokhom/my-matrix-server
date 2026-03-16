@@ -57,7 +57,7 @@ services:
 
   # --- NGINX (Reverse Proxy) ---
   nginx:
-    build: ./nginx # Changed from 'image' to 'build'
+    build: ./nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -65,7 +65,6 @@ services:
       - SERVER_NAME=${SERVER_NAME}
       - MAS_INTERNAL_URL=http://mas.railway.internal:8008
       - SYNAPSE_INTERNAL_URL=http://synapse.railway.internal:8008
-    # Notice we removed the 'volumes' section entirely!
     depends_on:
       - synapse
       - mas
