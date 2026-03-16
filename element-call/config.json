@@ -1,4 +1,11 @@
 {
-  "default_server_name": "synapse-test-kim-sokhom-matrix-email-bridge.up.railway.app",
-  "app_name": "My Matrix Call"
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://synapse-test-kim-sokhom-matrix-email-bridge.up.railway.app",
+      "server_name": "synapse-test-kim-sokhom-matrix-email-bridge.up.railway.app"
+    }
+  },
+  "livekit": {
+    "livekit_service_url": "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app"
+  }
 }

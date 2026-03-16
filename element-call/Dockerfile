@@ -1,14 +1,18 @@
 FROM nginx:alpine
 
+# Install curl and tar
+RUN apk add --no-cache curl tar
+
 RUN rm -rf /usr/share/nginx/html/*
 
-# Install wget and tar, download a specific stable version of Element Call
-# Using v0.6.0 as an example (check GitHub for the latest version tag)
-RUN apk add --no-cache wget tar && \
-    wget -qO element-call.tar.gz https://github.com/element-hq/element-call/releases/download/v0.6.0/element-call.tar.gz && \
+# Download the latest release asset directly from GitHub
+# This URL automatically points to the latest tarball in the releases
+RUN curl -L https://github.com/element-hq/element-call/releases/latest/download/element-call.tar.gz -o element-call.tar.gz && \
     tar -xvf element-call.tar.gz -C /usr/share/nginx/html --strip-components=1 && \
-    rm element-call.tar.gz && \
-    apk del wget
+    rm element-call.tar.gz
+
+# Remove curl to keep the image slim
+RUN apk del curl
 
 COPY config.json /usr/share/nginx/html/config.json
 
