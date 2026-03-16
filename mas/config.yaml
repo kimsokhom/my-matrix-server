@@ -17,6 +17,9 @@ database:
 
 secrets:
   encryption: "${MAS_ENCRYPTION_SECRET}"
+  keys:
+    - kid: "mas-rsa-key-1"
+      key: "${MAS_RSA_PRIVATE_KEY}" # Use "key" here, NOT "key_file"
 
 matrix:
   homeserver: "${SERVER_NAME}" # Must match `server_name` in Synapse config, NOT a URL
