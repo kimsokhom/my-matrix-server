@@ -63,8 +63,8 @@ services:
       - "80:80"
     environment:
       - SERVER_NAME=${SERVER_NAME}
-      - MAS_INTERNAL_URL=http://mas-test.railway.internal:8008
-      - SYNAPSE_INTERNAL_URL=http://synapse-test.railway.internal:8008
+      - MAS_INTERNAL_URL=http://mas.railway.internal:8008
+      - SYNAPSE_INTERNAL_URL=http://synapse.railway.internal:8008
     depends_on:
       - synapse
       - mas

@@ -24,7 +24,7 @@ secrets:
 matrix:
   homeserver: "${SERVER_NAME}" # Must match `server_name` in Synapse config, NOT a URL
   secret: "${MAS_SHARED_SECRET}" # Must match the secret in Synapse's `matrix_authentication_service`
-  endpoint: "http://synapse-test.railway.internal:8008" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
+  endpoint: "http://synapse.railway.internal:8008" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
 
 # OIDC Client configuration (commented out - using native MAS delegation instead)
 clients:
