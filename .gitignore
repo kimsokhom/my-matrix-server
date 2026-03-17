@@ -11,3 +11,7 @@ telegram-data/
 *.key
 *.signing.key
 signing.key
+mas_rsa.pem
+mas_rsa.pub
+*.pem
+*.key
