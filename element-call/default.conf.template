@@ -19,24 +19,23 @@ server {
     # 2. OIDC Discovery & MAS endpoints (REQUIRED for MAS)
     # This fixes the 500 error for .well-known/openid-configuration
     location ~ ^/(.well-known/openid-configuration|oauth2|re-authenticate|assets-mas|_mas) {
-        proxy_pass http://mas:8080;
+        proxy_pass http://mas-test:8008;
     }
 
     # 3. Matrix Auth paths -> MAS (Login/Logout Delegation)
     location ~ ^/_matrix/client/(api/v1|r0|v3|unstable)/(login|logout|refresh) {
-        proxy_pass http://mas:8080; 
+        proxy_pass http://mas-test:8000; 
     }
 
     # 4. API & Discovery -> Synapse
     location ~ ^(/_matrix|/_synapse|/.well-known/matrix/) {
-        proxy_pass http://synapse:8008;
+        proxy_pass http://synapse-:8008;
     }
 
     # 5. Element Call Frontend
     location / {
-        root /app;
+        root /usr/share/nginx/html;
         index index.html;
-        # Fixed try_files to prevent internal redirection cycles
         try_files $uri $uri/ /index.html =404;
     }
 }
