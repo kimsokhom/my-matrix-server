@@ -55,6 +55,20 @@ services:
         "server_name":"${SERVER_NAME}"},
         "m.identity_server":{"base_url":"https://vector.im"}}}
 
+  # --- NGINX (Reverse Proxy) ---
+  nginx:
+    build: ./nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - SERVER_NAME=${SERVER_NAME}
+      - MAS_INTERNAL_URL=http://mas-test.railway.internal:8008
+      - SYNAPSE_INTERNAL_URL=http://synapse-test.railway.internal:8008
+    depends_on:
+      - synapse
+      - mas
+
 volumes:
   synapse-data:
   telegram-data:
