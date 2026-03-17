@@ -68,7 +68,7 @@ matrix_authentication_service:
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
     - type: "livekit"
-      livekit_service_url: "https://element-call-kim-sokhom-matrix-email-bridge.up.railway.app/livekit/jwt"
+      livekit_service_url: "https://synapse-test-kim-sokhom-matrix-email-bridge.up.railway.app/livekit/jwt"
 
 experimental_features:
   # Required for Element Call / MatrixRTC
