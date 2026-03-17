@@ -51,6 +51,11 @@ branding:
 
 passwords:
   enabled: true
+  schemes:
+    - version: 1
+      algorithm: bcrypt
+    - version: 2
+      algorithm: argon2id
 
 account:
   # This makes the Username and Password text boxes appear
