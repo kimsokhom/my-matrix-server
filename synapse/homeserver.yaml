@@ -11,7 +11,7 @@ listeners:
     tls: false
     x_forwarded: true
     resources:
-      - names: [client, federation]
+      - names: [client, federation, admin]
         compress: false
 
 database:
@@ -75,7 +75,7 @@ experimental_features:
   # Required for Element Call / MatrixRTC
   msc3266_enabled: true
   msc4143_enabled: true
-  msc4222_enabled: true
+  msc4222_enabled: false
 
 # required for Element Call stability
 max_event_delay_duration: 24h
