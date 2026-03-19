@@ -11,7 +11,7 @@ listeners:
     tls: false
     x_forwarded: true
     resources:
-      - names: [client, federation, admin]
+      - names: [client, federation]
         compress: false
 
 database:
