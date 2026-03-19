@@ -75,7 +75,7 @@ experimental_features:
   # Required for Element Call / MatrixRTC
   msc3266_enabled: true
   msc4143_enabled: true
-  msc4222_enabled: false
+  msc4222_enabled: true
 
 # required for Element Call stability
 max_event_delay_duration: 24h
