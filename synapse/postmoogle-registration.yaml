@@ -1,9 +1,0 @@
-id: postmoogle
-as_token: my_secret_bridge_token_123
-hs_token: my_secret_synapse_token_456
-namespaces:
-  users:
-    - exclusive: true
-      regex: "@postmoogle:.*"
-url: "http://postmoogle.railway.internal:8080"
-sender_localpart: postmoogle
