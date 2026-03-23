@@ -1,9 +1,28 @@
 # =============================================================================
 # Matrix Server Suite — GitLab CI/CD
 # =============================================================================
+#
+# IMAGE TAG STRATEGY:
+#   Every push builds ALL services (with Docker layer cache — unchanged
+#   services finish in ~10 seconds). This guarantees the commit SHA tag
+#   always exists when OpenTofu tries to deploy it.
+#
+#   Every image gets:
+#     :COMMIT_SHA   — what OpenTofu deploys (immutable, unique)
+#     :latest       — main branch (human reference)
+#     :branch-slug  — feature branch (human reference)
+#     :staging-N    — merge request (human reference)
+#
+# ENVIRONMENTS:
+#   feature branch push  →  branch preview  (auto-deploy, auto-cleanup 3 days)
+#   merge request open   →  staging-mr-N    (auto-deploy, isolated per MR)
+#   merge request close  →  staging-mr-N    destroyed automatically
+#   push to main         →  development     (fully automatic)
+#
+# =============================================================================
+
 stages:
   - build
-  - scan
   - validate
   - plan
   - deploy
@@ -22,11 +41,10 @@ variables:
   DOCKER_BUILDKIT: "1"
   PROVIDER_TYPE: "railway"
 
-# include:
-#   - template: Security/Secret-Detection.gitlab-ci.yml
-
 # =============================================================================
-# BUILD
+# BUILD — all services on every push, parallel
+# Layer cache means unchanged services finish fast (~10s)
+# This guarantees the SHA tag always exists before plan/deploy runs
 # =============================================================================
 
 .build_template:
@@ -39,7 +57,10 @@ variables:
   script:
     - |
       echo "=== Building ${SERVICE} ==="
+
+      # Pull previous image for layer cache — if it doesn't exist yet, skip
       docker pull ${REGISTRY}/${SERVICE}:latest || true
+
       docker build \
         --cache-from ${REGISTRY}/${SERVICE}:latest \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -48,7 +69,11 @@ variables:
         -t ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} \
         -f ${SERVICE}/Dockerfile \
         ${SERVICE}/
+
+      # SHA tag — what OpenTofu deploys
       docker push ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}
+
+      # Context tag — human reference, not used by OpenTofu
       if   [ "$CI_COMMIT_BRANCH" = "main" ];                  then CTX_TAG="latest"
       elif [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then CTX_TAG="staging-${CI_MERGE_REQUEST_IID}"
       elif [ "$CI_PIPELINE_SOURCE" = "push" ];                then CTX_TAG="branch-${CI_COMMIT_REF_SLUG}"
@@ -56,97 +81,45 @@ variables:
       if [ -n "${CTX_TAG:-}" ]; then
         docker tag  ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} ${REGISTRY}/${SERVICE}:${CTX_TAG}
         docker push ${REGISTRY}/${SERVICE}:${CTX_TAG}
-        echo "==> SHA tag (deployed): ${CI_COMMIT_SHA}"
-        echo "==> Context tag (human reference): ${CTX_TAG}"
+        echo "==> SHA tag (deployed by OpenTofu) : ${CI_COMMIT_SHA}"
+        echo "==> Context tag (human reference)  : ${CTX_TAG}"
       fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
 
 build:synapse:
   extends: .build_template
   variables: { SERVICE: synapse }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["synapse/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["synapse/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["synapse/**"]
 
 build:mas:
   extends: .build_template
   variables: { SERVICE: mas }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["mas/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["mas/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["mas/**"]
 
+# TEMPORARY — delete when element-web moves to its own repo
 build:element:
   extends: .build_template
   variables: { SERVICE: element }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["element/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["element/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["element/**"]
 
 build:element-call:
   extends: .build_template
   variables: { SERVICE: element-call }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["element-call/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["element-call/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["element-call/**"]
 
 build:nginx:
   extends: .build_template
   variables: { SERVICE: nginx }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["nginx/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["nginx/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["nginx/**"]
 
 build:telegram:
   extends: .build_template
   variables: { SERVICE: telegram }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["telegram/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["telegram/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["telegram/**"]
 
 build:provisioning-service:
   extends: .build_template
   variables: { SERVICE: provisioning-service }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["provisioning-service/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["provisioning-service/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["provisioning-service/**"]
 
 build:postmoogle-widget:
   extends: .build_template
   variables: { SERVICE: postmoogle-widget }
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["postmoogle-widget/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["postmoogle-widget/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["postmoogle-widget/**"]
 
 # =============================================================================
 # VALIDATE
@@ -175,13 +148,8 @@ validate:opentofu:
 # =============================================================================
 # BASE TEMPLATES
 # =============================================================================
-# KEY FIX: Use TF_HTTP_* environment variables instead of -backend-config flags.
-# OpenTofu's HTTP backend reads these env vars natively for ALL operations
-# including state locking — so both init and plan/apply use the same credentials.
-#
-# TF_HTTP_ADDRESS, TF_HTTP_LOCK_ADDRESS, TF_HTTP_UNLOCK_ADDRESS,
-# TF_HTTP_USERNAME, TF_HTTP_PASSWORD, TF_HTTP_LOCK_METHOD, TF_HTTP_UNLOCK_METHOD
-# are all set per-job based on TF_STATE_KEY.
+# TF_HTTP_* env vars are read natively by OpenTofu's HTTP backend for ALL
+# operations including state locking — no -backend-config flags needed.
 
 .tofu_base:
   image:
@@ -189,7 +157,6 @@ validate:opentofu:
     entrypoint: [""]
   before_script:
     - apk add --no-cache jq curl
-    # App variables
     - export TF_VAR_provider_type="${PROVIDER_TYPE:-railway}"
     - export TF_VAR_railway_token="${RAILWAY_TOKEN:-}"
     - export TF_VAR_project_id="${RAILWAY_PROJECT_ID:-}"
@@ -205,7 +172,21 @@ validate:opentofu:
         export TF_VAR_element_image="${REGISTRY}/element:${CI_COMMIT_SHA}"
       fi
 
-# Railway env resolve/create — sets RAILWAY_ENV_ID and TF_VAR_environment_id
+# Sets TF_HTTP_* so OpenTofu HTTP backend works for init AND state locking
+.set_tf_http_vars: &set_tf_http_vars |
+  _BASE="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state"
+  export TF_HTTP_ADDRESS="${_BASE}/${TF_STATE_KEY}"
+  export TF_HTTP_LOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_UNLOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_USERNAME="gitlab-ci-token"
+  export TF_HTTP_PASSWORD="${CI_JOB_TOKEN}"
+  export TF_HTTP_LOCK_METHOD="POST"
+  export TF_HTTP_UNLOCK_METHOD="DELETE"
+  export TF_HTTP_RETRY_WAIT_MIN="5"
+  echo "==> Backend state key: ${TF_STATE_KEY}"
+
+# Resolve or create a Railway environment by name
+# Sets: RAILWAY_ENV_ID, TF_VAR_environment_id
 .resolve_env: &resolve_env |
   if [ "${TF_VAR_provider_type}" = "railway" ]; then
     RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
@@ -251,31 +232,16 @@ validate:opentofu:
   [ -z "$RAILWAY_ENV_NAME" ] && RAILWAY_ENV_NAME="branch-${CI_COMMIT_SHORT_SHA}"
   export RAILWAY_ENV_NAME
 
-# Sets TF_HTTP_* env vars so OpenTofu HTTP backend uses them for ALL operations
-# including state locking. Must be called before tofu init in every job.
-# Requires TF_STATE_KEY to be set (done via job variables:)
-.set_tf_http_vars: &set_tf_http_vars |
-  _BASE="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state"
-  export TF_HTTP_ADDRESS="${_BASE}/${TF_STATE_KEY}"
-  export TF_HTTP_LOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
-  export TF_HTTP_UNLOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
-  export TF_HTTP_USERNAME="gitlab-ci-token"
-  export TF_HTTP_PASSWORD="${CI_JOB_TOKEN}"
-  export TF_HTTP_LOCK_METHOD="POST"
-  export TF_HTTP_UNLOCK_METHOD="DELETE"
-  export TF_HTTP_RETRY_WAIT_MIN="5"
-  echo "==> Backend: ${TF_HTTP_ADDRESS}"
-
-.build_needs: &build_needs
+.all_builds: &all_builds
   - validate:opentofu
-  - { job: build:synapse,              optional: true }
-  - { job: build:mas,                  optional: true }
-  - { job: build:element,              optional: true }
-  - { job: build:element-call,         optional: true }
-  - { job: build:nginx,                optional: true }
-  - { job: build:telegram,             optional: true }
-  - { job: build:provisioning-service, optional: true }
-  - { job: build:postmoogle-widget,    optional: true }
+  - build:synapse
+  - build:mas
+  - build:element
+  - build:element-call
+  - build:nginx
+  - build:telegram
+  - build:provisioning-service
+  - build:postmoogle-widget
 
 # =============================================================================
 # PLAN — branch preview
@@ -304,7 +270,7 @@ plan:branch:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-  needs: *build_needs
+  needs: *all_builds
 
 # =============================================================================
 # PLAN — staging
@@ -333,7 +299,7 @@ plan:staging:
     expire_in: 2 hours
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  needs: *build_needs
+  needs: *all_builds
 
 # =============================================================================
 # PLAN — development
@@ -361,7 +327,7 @@ plan:dev:
     expire_in: 2 hours
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-  needs: *build_needs
+  needs: *all_builds
 
 # =============================================================================
 # DEPLOY — branch preview
