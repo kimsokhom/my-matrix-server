@@ -1,0 +1,16 @@
+id: telegram
+as_token: ${TELEGRAM_AS_TOKEN}
+hs_token: ${TELEGRAM_HS_TOKEN}
+namespaces:
+  users:
+    - exclusive: true
+      regex: "@telegram_.*"
+    # This allows the bridge to puppet your admin account
+    - exclusive: false
+      regex: "@.*:${SERVER_NAME}"
+  aliases:
+    - exclusive: true
+      regex: "#telegram_.*"
+url: http://mautrix-telegram.railway.internal:29317
+sender_localpart: telegrambot
+rate_limited: false

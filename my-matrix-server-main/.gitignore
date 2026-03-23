@@ -1,0 +1,17 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Data directories
+synapse-data/
+telegram-data/
+
+# Secrets
+*.key
+*.signing.key
+signing.key
+mas_rsa.pem
+mas_rsa.pub
+*.pem
+*.key

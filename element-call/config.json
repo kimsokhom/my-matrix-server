@@ -1,0 +1,12 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app",
+      "server_name": "synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+    }
+  },
+  "livekit": {
+    "livekit_service_url": "https://lk-jwt-service-kim-sokhom-matrix-email-bridge.up.railway.app",
+    "default_livekit_url": "wss://element-call-config-scri513w.livekit.cloud"
+  }
+}

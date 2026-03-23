@@ -1,0 +1,640 @@
+# =============================================================================
+# Matrix Server Suite — GitLab CI/CD
+# =============================================================================
+#
+# IMAGE TAG STRATEGY (no conflicts possible):
+#   Every image always gets: registry/service:COMMIT_SHA  (unique, immutable)
+#   Plus one human-readable context tag:
+#     main branch     → :latest
+#     feature branch  → :branch-feature-login
+#     merge request   → :staging-3  (MR number)
+#
+#   OpenTofu deploys using the SHA tag — never the context tag.
+#   Two developers pushing simultaneously = different SHAs = zero conflict.
+#
+# ENVIRONMENTS:
+#   feature branch push  →  branch preview  (auto-deploy, auto-cleanup in 3 days)
+#   merge request open   →  staging-mr-N    (auto-deploy, isolated per MR)
+#   merge request close  →  staging-mr-N    destroyed automatically
+#   push to main         →  development     (fully automatic, no manual gate)
+#
+# MULTIPLE MRS AT THE SAME TIME:
+#   MR #3 → env: staging-mr-3, state: staging-mr-3  ─┐ completely
+#   MR #7 → env: staging-mr-7, state: staging-mr-7  ─┘ isolated
+#
+# ELEMENT WEB (temporary — in this repo for now):
+#   Built and scanned like any other service.
+#   When element-web moves to its own repo:
+#     Step 1: Delete build:element and scan:element jobs below
+#     Step 2: Set ELEMENT_IMAGE CI variable to the other repo's registry image
+#     Step 3: Nothing else changes — terraform already reads ELEMENT_IMAGE
+#
+# CLOUD PROVIDER:
+#   PROVIDER_TYPE = "railway" (default) or "aws"
+#   Changing one variable switches the entire deployment target.
+#
+# =============================================================================
+
+stages:
+  - build
+  - scan
+  - validate
+  - plan
+  - deploy
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when: runner_system_failure
+
+variables:
+  REGISTRY: registry.gitlab.com/rexform-sandbox/rexform-matrix/rexform-matrix_server_suite
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: "1"
+  PROVIDER_TYPE: "railway"
+
+# =============================================================================
+# SECRET DETECTION — catches accidentally committed secrets on every push
+# =============================================================================
+
+include:
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+# =============================================================================
+# BUILD
+# Each service rebuilds ONLY when its own files change.
+# All rebuilds run in parallel.
+# =============================================================================
+
+.build_template:
+  stage: build
+  image: docker:25
+  services:
+    - docker:25-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - |
+      echo "=== Building ${SERVICE} ==="
+      docker pull ${REGISTRY}/${SERVICE}:latest || true
+
+      docker build \
+        --cache-from ${REGISTRY}/${SERVICE}:latest \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        -t ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} \
+        -f ${SERVICE}/Dockerfile \
+        ${SERVICE}/
+
+      # SHA tag — what OpenTofu actually deploys (immutable, unique)
+      docker push ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}
+
+      # Context tag — for humans, NOT used by OpenTofu for deployments
+      if   [ "$CI_COMMIT_BRANCH" = "main" ];                  then CTX_TAG="latest"
+      elif [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then CTX_TAG="staging-${CI_MERGE_REQUEST_IID}"
+      elif [ "$CI_PIPELINE_SOURCE" = "push" ];                then CTX_TAG="branch-${CI_COMMIT_REF_SLUG}"
+      fi
+      if [ -n "${CTX_TAG:-}" ]; then
+        docker tag  ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} ${REGISTRY}/${SERVICE}:${CTX_TAG}
+        docker push ${REGISTRY}/${SERVICE}:${CTX_TAG}
+        echo "==> Deployed with SHA tag : ${CI_COMMIT_SHA}"
+        echo "==> Human reference tag   : ${CTX_TAG}"
+      fi
+
+build:synapse:
+  extends: .build_template
+  variables: { SERVICE: synapse }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["synapse/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["synapse/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["synapse/**"]
+
+build:mas:
+  extends: .build_template
+  variables: { SERVICE: mas }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["mas/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["mas/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["mas/**"]
+
+# TEMPORARY — delete this job when element-web moves to its own repo
+build:element:
+  extends: .build_template
+  variables: { SERVICE: element }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["element/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["element/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["element/**"]
+
+build:element-call:
+  extends: .build_template
+  variables: { SERVICE: element-call }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["element-call/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["element-call/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["element-call/**"]
+
+build:nginx:
+  extends: .build_template
+  variables: { SERVICE: nginx }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["nginx/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["nginx/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["nginx/**"]
+
+build:telegram:
+  extends: .build_template
+  variables: { SERVICE: telegram }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["telegram/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["telegram/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["telegram/**"]
+
+build:provisioning-service:
+  extends: .build_template
+  variables: { SERVICE: provisioning-service }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["provisioning-service/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["provisioning-service/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["provisioning-service/**"]
+
+build:postmoogle-widget:
+  extends: .build_template
+  variables: { SERVICE: postmoogle-widget }
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["postmoogle-widget/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["postmoogle-widget/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["postmoogle-widget/**"]
+
+# =============================================================================
+# SCAN — Trivy CVE scan per service
+# CRITICAL/HIGH blocks the pipeline. Results in GitLab Security dashboard.
+# =============================================================================
+
+.scan_template:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - |
+      echo "=== Scanning ${SERVICE}:${CI_COMMIT_SHA} ==="
+      trivy image \
+        --exit-code 1 \
+        --severity CRITICAL,HIGH \
+        --no-progress \
+        --ignore-unfixed \
+        "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}"
+  after_script:
+    - |
+      trivy image \
+        --exit-code 0 \
+        --severity CRITICAL,HIGH,MEDIUM \
+        --no-progress \
+        --ignore-unfixed \
+        --format sarif \
+        --output "trivy-${SERVICE}.sarif" \
+        "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}" || true
+  artifacts:
+    when: always
+    paths: ["trivy-${SERVICE}.sarif"]
+    reports:
+      sast: "trivy-${SERVICE}.sarif"
+    expire_in: 1 week
+
+scan:synapse:
+  extends: .scan_template
+  variables: { SERVICE: synapse }
+  needs: [build:synapse]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["synapse/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["synapse/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["synapse/**"]
+
+scan:mas:
+  extends: .scan_template
+  variables: { SERVICE: mas }
+  needs: [build:mas]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["mas/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["mas/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["mas/**"]
+
+# TEMPORARY — delete when element-web moves to its own repo
+scan:element:
+  extends: .scan_template
+  variables: { SERVICE: element }
+  needs: [build:element]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["element/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["element/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["element/**"]
+
+scan:element-call:
+  extends: .scan_template
+  variables: { SERVICE: element-call }
+  needs: [build:element-call]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["element-call/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["element-call/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["element-call/**"]
+
+scan:nginx:
+  extends: .scan_template
+  variables: { SERVICE: nginx }
+  needs: [build:nginx]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["nginx/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["nginx/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["nginx/**"]
+
+scan:telegram:
+  extends: .scan_template
+  variables: { SERVICE: telegram }
+  needs: [build:telegram]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["telegram/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["telegram/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["telegram/**"]
+
+scan:provisioning-service:
+  extends: .scan_template
+  variables: { SERVICE: provisioning-service }
+  needs: [build:provisioning-service]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["provisioning-service/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["provisioning-service/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["provisioning-service/**"]
+
+scan:postmoogle-widget:
+  extends: .scan_template
+  variables: { SERVICE: postmoogle-widget }
+  needs: [build:postmoogle-widget]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: ["postmoogle-widget/**"]
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes: ["postmoogle-widget/**"]
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes: ["postmoogle-widget/**"]
+
+# =============================================================================
+# VALIDATE
+# =============================================================================
+
+validate:opentofu:
+  stage: validate
+  image:
+    name: ghcr.io/opentofu/opentofu:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache jq curl
+    - cd ${TF_ROOT}/environments/dev
+    - tofu init -backend=false -input=false
+  script:
+    - cd ${TF_ROOT}
+    - tofu fmt -check -recursive
+    - cd ${TF_ROOT}/environments/dev
+    - tofu validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+  allow_failure: false
+  needs: []
+
+# =============================================================================
+# BASE TEMPLATES
+# =============================================================================
+
+.tofu_base:
+  image:
+    name: ghcr.io/opentofu/opentofu:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache jq curl
+    - cd ${TF_ROOT}/environments/${TF_ENV}
+    - export TF_VAR_provider_type="${PROVIDER_TYPE:-railway}"
+    - export TF_VAR_railway_token="${RAILWAY_TOKEN:-}"
+    - export TF_VAR_project_id="${RAILWAY_PROJECT_ID:-}"
+    - export TF_VAR_aws_region="${AWS_REGION:-ap-southeast-1}"
+    - export TF_VAR_project_name="${PROJECT_NAME:-matrix}"
+    - export TF_VAR_registry="$REGISTRY"
+    - export TF_VAR_registry_username="${GITLAB_DEPLOY_TOKEN_USERNAME:-$CI_REGISTRY_USER}"
+    - export TF_VAR_registry_password="${GITLAB_DEPLOY_TOKEN_PASSWORD:-$CI_REGISTRY_PASSWORD}"
+    # Element Web: use ELEMENT_IMAGE if set (own repo), else use image built here
+    - |
+      if [ -n "${ELEMENT_IMAGE:-}" ]; then
+        export TF_VAR_element_image="$ELEMENT_IMAGE"
+      else
+        export TF_VAR_element_image="${REGISTRY}/element:${CI_COMMIT_SHA}"
+      fi
+    - |
+      tofu init \
+        -backend-config="address=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE_KEY}" \
+        -backend-config="lock_address=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE_KEY}/lock" \
+        -backend-config="unlock_address=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${TF_STATE_KEY}/lock" \
+        -backend-config="lock_method=POST" \
+        -backend-config="unlock_method=DELETE" \
+        -backend-config="username=gitlab-ci-token" \
+        -backend-config="password=${CI_JOB_TOKEN}" \
+        -backend-config="retry_wait_min=5" \
+        -input=false
+
+.resolve_env: &resolve_env |
+  if [ "${TF_VAR_provider_type}" = "railway" ]; then
+    RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+      -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg id "$RAILWAY_PROJECT_ID" \
+        '{query:"query($id:String!){project(id:$id){environments{edges{node{id name}}}}}",variables:{id:$id}}')" \
+      | jq -r ".data.project.environments.edges[] \
+          | select(.node.name==\"${RAILWAY_ENV_NAME}\") | .node.id" \
+      | head -n1)
+    if [ -z "$RAILWAY_ENV_ID" ] || [ "$RAILWAY_ENV_ID" = "null" ]; then
+      echo "==> Creating Railway environment: ${RAILWAY_ENV_NAME}"
+      RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+        -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -nc --arg p "$RAILWAY_PROJECT_ID" --arg n "$RAILWAY_ENV_NAME" \
+          '{query:"mutation($i:EnvironmentCreateInput!){environmentCreate(input:$i){id name}}",variables:{i:{projectId:$p,name:$n}}}')" \
+        | jq -r '.data.environmentCreate.id')
+      sleep 3
+    fi
+    echo "==> '${RAILWAY_ENV_NAME}' = ${RAILWAY_ENV_ID}"
+    export RAILWAY_ENV_ID TF_VAR_environment_id="$RAILWAY_ENV_ID"
+  else
+    export TF_VAR_environment_id="${RAILWAY_ENV_NAME}"
+  fi
+
+.delete_env: &delete_env |
+  if [ "${TF_VAR_provider_type}" = "railway" ] && [ -n "${RAILWAY_ENV_ID:-}" ]; then
+    curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+      -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg id "$RAILWAY_ENV_ID" \
+        '{query:"mutation($id:String!){environmentDelete(id:$id)}",variables:{id:$id}}')" \
+      > /dev/null && echo "==> Deleted Railway environment: ${RAILWAY_ENV_NAME}"
+  fi
+
+.sanitise_branch: &sanitise_branch |
+  RAILWAY_ENV_NAME=$(echo "branch-${CI_COMMIT_REF_SLUG}" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g' \
+    | cut -c1-32)
+  [ -z "$RAILWAY_ENV_NAME" ] && RAILWAY_ENV_NAME="branch-${CI_COMMIT_SHORT_SHA}"
+  export RAILWAY_ENV_NAME
+
+# All scan jobs are optional so plan runs even if only some services changed
+.scan_needs: &scan_needs
+  - validate:opentofu
+  - { job: scan:synapse,              optional: true }
+  - { job: scan:mas,                  optional: true }
+  - { job: scan:element,              optional: true }
+  - { job: scan:element-call,         optional: true }
+  - { job: scan:nginx,                optional: true }
+  - { job: scan:telegram,             optional: true }
+  - { job: scan:provisioning-service, optional: true }
+  - { job: scan:postmoogle-widget,    optional: true }
+
+# =============================================================================
+# PLAN
+# =============================================================================
+
+plan:branch:
+  extends: .tofu_base
+  stage: plan
+  variables:
+    TF_ENV: preview
+    TF_STATE_KEY: branch-${CI_COMMIT_REF_SLUG}
+  script:
+    - *sanitise_branch
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="${RAILWAY_ENV_NAME}"
+      tofu plan -lock=false -out=tfplan
+  artifacts:
+    paths: [terraform/environments/preview/tfplan]
+    expire_in: 2 hours
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+  needs: *scan_needs
+
+plan:staging:
+  extends: .tofu_base
+  stage: plan
+  variables:
+    TF_ENV: staging
+    TF_STATE_KEY: staging-mr-${CI_MERGE_REQUEST_IID}
+  script:
+    - |
+      RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
+      export RAILWAY_ENV_NAME
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="staging"
+      tofu plan -lock=false -out=tfplan
+  artifacts:
+    paths: [terraform/environments/staging/tfplan]
+    expire_in: 2 hours
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  needs: *scan_needs
+
+plan:dev:
+  extends: .tofu_base
+  stage: plan
+  variables:
+    TF_ENV: dev
+    TF_STATE_KEY: dev
+  script:
+    - |
+      export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="dev"
+      export RAILWAY_ENV_ID="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      tofu plan -lock=false -out=tfplan
+  artifacts:
+    paths: [terraform/environments/dev/tfplan]
+    expire_in: 2 hours
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  needs: *scan_needs
+
+# =============================================================================
+# DEPLOY
+# =============================================================================
+
+deploy:branch:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: preview
+    TF_STATE_KEY: branch-${CI_COMMIT_REF_SLUG}
+  script:
+    - *sanitise_branch
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="${RAILWAY_ENV_NAME}"
+      tofu apply -auto-approve tfplan
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: preview/branch-${CI_COMMIT_REF_SLUG}
+    url: $RAILWAY_PREVIEW_URL
+    on_stop: cleanup:branch
+    auto_stop_in: 3 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+  needs: [plan:branch]
+
+cleanup:branch:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: preview
+    TF_STATE_KEY: branch-${CI_COMMIT_REF_SLUG}
+  script:
+    - *sanitise_branch
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="branch-${CI_COMMIT_REF_SLUG}"
+      export TF_VAR_environment="${RAILWAY_ENV_NAME}"
+      tofu destroy -auto-approve
+    - *delete_env
+  environment:
+    name: preview/branch-${CI_COMMIT_REF_SLUG}
+    action: stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      when: manual
+  allow_failure: true
+  needs: []
+
+deploy:staging:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: staging
+    TF_STATE_KEY: staging-mr-${CI_MERGE_REQUEST_IID}
+  script:
+    - |
+      RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
+      export RAILWAY_ENV_NAME
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="staging"
+      tofu apply -auto-approve tfplan
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: staging/mr-${CI_MERGE_REQUEST_IID}
+    url: $RAILWAY_STAGING_URL
+    on_stop: cleanup:staging
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  needs: [plan:staging]
+
+cleanup:staging:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: staging
+    TF_STATE_KEY: staging-mr-${CI_MERGE_REQUEST_IID}
+  script:
+    - |
+      RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
+      export RAILWAY_ENV_NAME
+    - *resolve_env
+    - |
+      export TF_VAR_image_tag="staging-${CI_MERGE_REQUEST_IID}"
+      export TF_VAR_environment="staging"
+      tofu destroy -auto-approve
+    - *delete_env
+  environment:
+    name: staging/mr-${CI_MERGE_REQUEST_IID}
+    action: stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+  allow_failure: true
+  needs: []
+
+# Fully automatic — push to main = deploy to development, no manual gate
+deploy:dev:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: dev
+    TF_STATE_KEY: dev
+  script:
+    - |
+      export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      export TF_VAR_environment="dev"
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export RAILWAY_ENV_ID="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      tofu apply -auto-approve tfplan
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: development
+    url: $RAILWAY_DEV_URL
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  needs: [plan:dev]
