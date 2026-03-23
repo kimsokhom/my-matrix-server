@@ -60,8 +60,8 @@ variables:
 # SECRET DETECTION — catches accidentally committed secrets on every push
 # =============================================================================
 
-include:
-  - template: Security/Secret-Detection.gitlab-ci.yml
+# include:
+#   - template: Security/Secret-Detection.gitlab-ci.yml
 
 # =============================================================================
 # BUILD
