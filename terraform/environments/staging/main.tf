@@ -34,43 +34,43 @@ variable "environment" {
 }
 
 # Railway-specific
-variable "railway_token"    { 
-  type = string
+variable "railway_token" {
+  type      = string
   sensitive = true
-  default = "" 
-  }
-variable "project_id"       { 
-  type = string
-  default = "" 
-  }
-variable "environment_id"   { 
-  type = string
-  default = "" 
+  default   = ""
+}
+variable "project_id" {
+  type    = string
+  default = ""
+}
+variable "environment_id" {
+  type    = string
+  default = ""
 }
 
 # AWS-specific
-variable "aws_region"     { 
-    type = string
-   default = "ap-southeast-1" 
-   }
-variable "project_name"   { 
-  type = string
- default = "matrix" 
- }
+variable "aws_region" {
+  type    = string
+  default = "ap-southeast-1"
+}
+variable "project_name" {
+  type    = string
+  default = "matrix"
+}
 
 # Registry (same for all providers)
-variable "registry"          { type = string }
+variable "registry" { type = string }
 variable "registry_username" { type = string }
-variable "registry_password" { 
-  type = string
- sensitive = true 
- }
+variable "registry_password" {
+  type      = string
+  sensitive = true
+}
 
 # Image tag — set by CI (commit SHA, branch-slug, etc.)
-variable "image_tag" { 
-  type = string
- default = "latest" 
- }
+variable "image_tag" {
+  type    = string
+  default = "latest"
+}
 
 # Element Web image comes from its own repo
 variable "element_image" {
@@ -172,10 +172,10 @@ module "aws" {
   count  = var.provider_type == "aws" ? 1 : 0
   source = "../../modules/aws"
 
-  region        = var.aws_region
-  project_name  = var.project_name
-  environment   = var.environment
-  services      = local.services
+  region            = var.aws_region
+  project_name      = var.project_name
+  environment       = var.environment
+  services          = local.services
   registry_username = var.registry_username
   registry_password = var.registry_password
 }
@@ -187,7 +187,7 @@ module "aws" {
 output "service_ids" {
   value = var.provider_type == "railway" ? (
     length(module.railway) > 0 ? module.railway[0].service_ids : {}
-  ) : (
+    ) : (
     length(module.aws) > 0 ? module.aws[0].service_ids : {}
   )
 }

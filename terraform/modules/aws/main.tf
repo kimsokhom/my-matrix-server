@@ -16,15 +16,15 @@ terraform {
   }
 }
 
-variable "region"       { 
-  type = string
- default = "ap-southeast-1" 
- } # Singapore
-variable "project_name" { 
-  type = string
- default = "matrix" 
- }
-variable "environment"  { type = string }
+variable "region" {
+  type    = string
+  default = "ap-southeast-1"
+} # Singapore
+variable "project_name" {
+  type    = string
+  default = "matrix"
+}
+variable "environment" { type = string }
 
 variable "services" {
   type = map(object({
@@ -36,10 +36,10 @@ variable "services" {
 }
 
 variable "registry_username" { type = string }
-variable "registry_password" { 
-  type = string
- sensitive = true 
- }
+variable "registry_password" {
+  type      = string
+  sensitive = true
+}
 
 # ── Network ───────────────────────────────────────────────────────────────────
 
@@ -64,10 +64,10 @@ module "vpc" {
 resource "aws_iam_role" "ecs_execution" {
   name = "${var.project_name}-${var.environment}-ecs-exec"
   assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [{ Effect = "Allow"
-     Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action = "sts:AssumeRole" }]
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+    Action = "sts:AssumeRole" }]
   })
 }
 
@@ -81,9 +81,9 @@ resource "aws_secretsmanager_secret" "registry" {
 }
 
 resource "aws_secretsmanager_secret_version" "registry" {
-  secret_id     = aws_secretsmanager_secret.registry.id
+  secret_id = aws_secretsmanager_secret.registry.id
   secret_string = jsonencode({ username = var.registry_username
-   password = var.registry_password })
+  password = var.registry_password })
 }
 
 resource "aws_iam_role_policy" "registry_access" {
@@ -91,8 +91,8 @@ resource "aws_iam_role_policy" "registry_access" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{ Effect = "Allow"
-     Action = ["secretsmanager:GetSecretValue"]
-      Resource = [aws_secretsmanager_secret.registry.arn] }]
+      Action = ["secretsmanager:GetSecretValue"]
+    Resource = [aws_secretsmanager_secret.registry.arn] }]
   })
 }
 
@@ -101,9 +101,9 @@ resource "aws_iam_role_policy" "registry_access" {
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-${var.environment}"
   setting {
-     name = "containerInsights"
-   value = "enabled" 
-   }
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 resource "aws_ecs_cluster_capacity_providers" "main" {
@@ -130,18 +130,18 @@ resource "aws_security_group" "services" {
   vpc_id      = module.vpc.vpc_id
   description = "SG for ${each.key}"
 
-  ingress { 
-    from_port = each.value.port
-   to_port = each.value.port
-    protocol = "tcp"
-     cidr_blocks = ["10.0.0.0/16"] 
-     }
-  egress  {
-     from_port = 0
-              to_port = 0       
-                     protocol = "-1"
-                      cidr_blocks = ["0.0.0.0/0"] 
-                      }
+  ingress {
+    from_port   = each.value.port
+    to_port     = each.value.port
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_ecs_task_definition" "services" {
@@ -157,10 +157,10 @@ resource "aws_ecs_task_definition" "services" {
     name  = each.key
     image = each.value.image
     portMappings = [{ containerPort = each.value.port
-     protocol = "tcp" }]
+    protocol = "tcp" }]
     # Variables are set via AWS Systems Manager Parameter Store or passed at runtime
     # The same deploy.sh script sets them via AWS API when provider_type = "aws"
-    environment = []
+    environment           = []
     repositoryCredentials = { credentialsParameter = aws_secretsmanager_secret.registry.arn }
     logConfiguration = {
       logDriver = "awslogs"
@@ -202,5 +202,5 @@ output "service_ids" {
 }
 
 output "environment_id" { value = var.environment }
-output "project_id"     { value = var.project_name }
-output "provider"       { value = "aws" }
+output "project_id" { value = var.project_name }
+output "provider" { value = "aws" }
