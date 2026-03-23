@@ -1,8 +1,15 @@
 FROM matrixdotorg/synapse:latest
 
-# Install envsubst for environment variable substitution
-RUN apt-get update && apt-get install -y gettext-base && rm -rf /var/lib/apt/lists/*
+# 1. Install necessary build dependencies (git and python-pip are needed to install the module)
+RUN apt-get update && \
+    apt-get install -y gettext-base git python3-pip && \
+    rm -rf /var/lib/apt/lists/*
 
+# 2. Install the Shared Secret module using pip
+# We install it into the system site-packages so Synapse can find it
+RUN pip3 install --no-cache-dir git+https://github.com/devture/matrix-synapse-shared-secret-auth
+
+# Copy your configuration templates
 COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
 COPY registration.yaml /etc/synapse/registration.yaml.template
 
