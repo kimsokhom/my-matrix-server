@@ -8,6 +8,16 @@
 
 terraform {
   required_version = ">= 1.5"
+  required_providers {
+    railway = {
+      source  = "terraform-community-providers/railway"
+      version = "~> 0.6.1"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
 }
 
 # ── Variables ─────────────────────────────────────────────────────────────────
@@ -66,6 +76,21 @@ variable "image_tag" {
 variable "element_image" {
   type    = string
   default = "vectorim/element-web:latest"
+}
+
+provider "railway" {
+  token = var.railway_token
+}
+
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "OpenTofu"
+    }
+  }
 }
 
 # ── Service catalog ───────────────────────────────────────────────────────────
@@ -129,6 +154,7 @@ locals {
 # ── Railway deployment ────────────────────────────────────────────────────────
 
 module "railway" {
+  count  = var.provider_type == "railway" ? 1 : 0
   source = "../../modules/railway"
 
   railway_token     = var.railway_token
@@ -140,18 +166,38 @@ module "railway" {
   registry_password = var.registry_password
 }
 
+# ── AWS deployment ────────────────────────────────────────────────────────────
+
+module "aws" {
+  count  = var.provider_type == "aws" ? 1 : 0
+  source = "../../modules/aws"
+
+  region        = var.aws_region
+  project_name  = var.project_name
+  environment   = var.environment
+  services      = local.services
+  registry_username = var.registry_username
+  registry_password = var.registry_password
+}
+
 # ── Unified outputs ───────────────────────────────────────────────────────────
 # Same output shape regardless of which provider was used.
 # deploy.sh reads these without needing to know which cloud it's on.
 
 output "service_ids" {
-  value = module.railway.service_ids
+  value = var.provider_type == "railway" ? (
+    length(module.railway) > 0 ? module.railway[0].service_ids : {}
+  ) : (
+    length(module.aws) > 0 ? module.aws[0].service_ids : {}
+  )
 }
 
 output "environment_id" {
-  value = module.railway.environment_id
+  value = var.provider_type == "railway" ? (
+    length(module.railway) > 0 ? module.railway[0].environment_id : ""
+  ) : var.environment
 }
 
 output "provider_type" {
-  value = "railway"
+  value = var.provider_type
 }

@@ -49,10 +49,6 @@ variable "registry_password" {
   sensitive = true
 }
 
-provider "railway" {
-  token = var.railway_token
-}
-
 resource "railway_service" "services" {
   for_each = var.services
 

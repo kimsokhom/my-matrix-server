@@ -8,6 +8,16 @@
 
 terraform {
   required_version = ">= 1.5"
+  required_providers {
+    railway = {
+      source  = "terraform-community-providers/railway"
+      version = "~> 0.6.1"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
 }
 
 # ── Variables ─────────────────────────────────────────────────────────────────
@@ -66,6 +76,21 @@ variable "image_tag" {
 variable "element_image" {
   type    = string
   default = "vectorim/element-web:latest"
+}
+
+provider "railway" {
+  token = var.railway_token
+}
+
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "OpenTofu"
+    }
+  }
 }
 
 # ── Service catalog ───────────────────────────────────────────────────────────

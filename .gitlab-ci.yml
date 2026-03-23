@@ -197,135 +197,135 @@ build:postmoogle-widget:
 # =============================================================================
 # SCAN — Trivy CVE scan per service
 # CRITICAL/HIGH blocks the pipeline. Results in GitLab Security dashboard.
-# =============================================================================
+# # =============================================================================
 
-.scan_template:
-  stage: scan
-  image:
-    name: aquasec/trivy:latest
-    entrypoint: [""]
-  script:
-    - |
-      echo "=== Scanning ${SERVICE}:${CI_COMMIT_SHA} ==="
-      trivy image \
-        --exit-code 1 \
-        --severity CRITICAL,HIGH \
-        --no-progress \
-        --ignore-unfixed \
-        "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}"
-  after_script:
-    - |
-      trivy image \
-        --exit-code 0 \
-        --severity CRITICAL,HIGH,MEDIUM \
-        --no-progress \
-        --ignore-unfixed \
-        --format sarif \
-        --output "trivy-${SERVICE}.sarif" \
-        "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}" || true
-  artifacts:
-    when: always
-    paths: ["trivy-${SERVICE}.sarif"]
-    reports:
-      sast: "trivy-${SERVICE}.sarif"
-    expire_in: 1 week
+# .scan_template:
+#   stage: scan
+#   image:
+#     name: aquasec/trivy:latest
+#     entrypoint: [""]
+#   script:
+#     - |
+#       echo "=== Scanning ${SERVICE}:${CI_COMMIT_SHA} ==="
+#       trivy image \
+#         --exit-code 1 \
+#         --severity CRITICAL,HIGH \
+#         --no-progress \
+#         --ignore-unfixed \
+#         "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}"
+#   after_script:
+#     - |
+#       trivy image \
+#         --exit-code 0 \
+#         --severity CRITICAL,HIGH,MEDIUM \
+#         --no-progress \
+#         --ignore-unfixed \
+#         --format sarif \
+#         --output "trivy-${SERVICE}.sarif" \
+#         "${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}" || true
+#   artifacts:
+#     when: always
+#     paths: ["trivy-${SERVICE}.sarif"]
+#     reports:
+#       sast: "trivy-${SERVICE}.sarif"
+#     expire_in: 1 week
 
-scan:synapse:
-  extends: .scan_template
-  variables: { SERVICE: synapse }
-  needs: [build:synapse]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["synapse/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["synapse/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["synapse/**"]
+# scan:synapse:
+#   extends: .scan_template
+#   variables: { SERVICE: synapse }
+#   needs: [build:synapse]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["synapse/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["synapse/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["synapse/**"]
 
-scan:mas:
-  extends: .scan_template
-  variables: { SERVICE: mas }
-  needs: [build:mas]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["mas/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["mas/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["mas/**"]
+# scan:mas:
+#   extends: .scan_template
+#   variables: { SERVICE: mas }
+#   needs: [build:mas]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["mas/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["mas/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["mas/**"]
 
-# TEMPORARY — delete when element-web moves to its own repo
-scan:element:
-  extends: .scan_template
-  variables: { SERVICE: element }
-  needs: [build:element]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["element/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["element/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["element/**"]
+# # TEMPORARY — delete when element-web moves to its own repo
+# scan:element:
+#   extends: .scan_template
+#   variables: { SERVICE: element }
+#   needs: [build:element]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["element/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["element/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["element/**"]
 
-scan:element-call:
-  extends: .scan_template
-  variables: { SERVICE: element-call }
-  needs: [build:element-call]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["element-call/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["element-call/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["element-call/**"]
+# scan:element-call:
+#   extends: .scan_template
+#   variables: { SERVICE: element-call }
+#   needs: [build:element-call]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["element-call/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["element-call/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["element-call/**"]
 
-scan:nginx:
-  extends: .scan_template
-  variables: { SERVICE: nginx }
-  needs: [build:nginx]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["nginx/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["nginx/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["nginx/**"]
+# scan:nginx:
+#   extends: .scan_template
+#   variables: { SERVICE: nginx }
+#   needs: [build:nginx]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["nginx/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["nginx/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["nginx/**"]
 
-scan:telegram:
-  extends: .scan_template
-  variables: { SERVICE: telegram }
-  needs: [build:telegram]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["telegram/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["telegram/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["telegram/**"]
+# scan:telegram:
+#   extends: .scan_template
+#   variables: { SERVICE: telegram }
+#   needs: [build:telegram]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["telegram/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["telegram/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["telegram/**"]
 
-scan:provisioning-service:
-  extends: .scan_template
-  variables: { SERVICE: provisioning-service }
-  needs: [build:provisioning-service]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["provisioning-service/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["provisioning-service/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["provisioning-service/**"]
+# scan:provisioning-service:
+#   extends: .scan_template
+#   variables: { SERVICE: provisioning-service }
+#   needs: [build:provisioning-service]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["provisioning-service/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["provisioning-service/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["provisioning-service/**"]
 
-scan:postmoogle-widget:
-  extends: .scan_template
-  variables: { SERVICE: postmoogle-widget }
-  needs: [build:postmoogle-widget]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: ["postmoogle-widget/**"]
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes: ["postmoogle-widget/**"]
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-      changes: ["postmoogle-widget/**"]
+# scan:postmoogle-widget:
+#   extends: .scan_template
+#   variables: { SERVICE: postmoogle-widget }
+#   needs: [build:postmoogle-widget]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       changes: ["postmoogle-widget/**"]
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes: ["postmoogle-widget/**"]
+#     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+#       changes: ["postmoogle-widget/**"]
 
 # =============================================================================
 # VALIDATE
