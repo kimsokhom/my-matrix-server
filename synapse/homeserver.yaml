@@ -65,7 +65,6 @@ report_stats: false
 
 app_service_config_files:
   - /etc/synapse/registration.yaml
-  - /data/postmoogle-registration.yaml
 
 # NATIVE MAS DELEGATION:
 # matrix_authentication_service:
