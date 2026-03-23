@@ -234,6 +234,7 @@ railway_upsert_vars() {
   echo "==> Upserting $(echo "$VARS_JSON" | jq 'keys | length') variables for service ${SVC_ID}"
 
   QUERY=$(jq -nc \
+    --arg p "$RAILWAY_PROJECT_ID" \
     --arg e "$ENV_ID" \
     --arg s "$SVC_ID" \
     --argjson vars "$VARS_JSON" \
@@ -241,14 +242,14 @@ railway_upsert_vars() {
       query: "mutation($i:VariableCollectionUpsertInput!){ variableCollectionUpsert(input:$i) }",
       variables: {
         i: {
-          projectId: $ENV_ID,
+          projectId: $p,
           environmentId: $e,
           serviceId: $s,
           variables: $vars,
           replace: false
         }
       }
-    }' | jq --arg p "$RAILWAY_PROJECT_ID" '.variables.i.projectId = $p')
+    }')
 
   _gql "$QUERY" > /dev/null
   echo "==> Variables set"
