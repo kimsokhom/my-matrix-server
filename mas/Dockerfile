@@ -13,7 +13,7 @@ RUN apt-get update && \
 COPY --from=mas-src /usr/local/bin/mas-cli /usr/local/bin/mas-cli
 COPY --from=mas-src /usr/local/share/mas-cli /usr/local/share/mas-cli
 
-# 5. Create the startup script
+# 5. Create the startup script 
 RUN printf '#!/bin/sh\n\
 set -e\n\
 echo "Substituting environment variables..."\n\

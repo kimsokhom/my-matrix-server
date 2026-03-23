@@ -7,7 +7,7 @@ RUN apk add --no-cache gettext
 COPY config.yaml /etc/mautrix-telegram/config.yaml.template
 COPY registration.yaml /etc/mautrix-telegram/registration.yaml.template
 
-# Create entrypoint script to substitute variables
+# Create entrypoint script to substitute variables 
 RUN printf '#!/bin/sh\n\
 set -e\n\
 echo "Substituting environment variables..."\n\
