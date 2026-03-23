@@ -83,7 +83,10 @@ provider "railway" {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region                      = var.aws_region
+  skip_credentials_validation = var.provider_type != "aws"
+  skip_requesting_account_id  = var.provider_type != "aws"
+  skip_metadata_api_check     = var.provider_type != "aws"
   default_tags {
     tags = {
       Project     = var.project_name
