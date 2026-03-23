@@ -1,13 +1,12 @@
 FROM matrixdotorg/synapse:latest
 
-# 1. Install necessary build dependencies (git and python-pip are needed to install the module)
+# 1. Install necessary build dependencies
 RUN apt-get update && \
     apt-get install -y gettext-base git python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-# 2. Install the Shared Secret module using pip
-# We install it into the system site-packages so Synapse can find it
-RUN pip3 install --no-cache-dir git+https://github.com/devture/matrix-synapse-shared-secret-auth
+# 2. INSTALL THE MAS HELPER MODULE (This replaces the shared secret module)
+RUN pip3 install --no-cache-dir matrix-synapse-mas
 
 # Copy your configuration templates
 COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
