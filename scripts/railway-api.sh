@@ -1,229 +1,160 @@
 #!/bin/sh
 # =============================================================================
-# railway-api.sh
+# railway-api.sh — Railway GraphQL API helper
 # =============================================================================
-# Single helper for all Railway GraphQL API operations.
-# Source this file, then call the functions you need.
-#
-# Required env vars:
-#   RAILWAY_TOKEN      — Railway account API token
-#   RAILWAY_PROJECT_ID — Railway project ID
-#
-# Usage:
-#   source /scripts/railway-api.sh
-#   railway_get_or_create_env "pr-42"   # returns env ID in RAILWAY_ENV_ID
-#   railway_upsert_vars "$ENV_ID" "$SERVICE_ID" "VAR1=val1" "VAR2=val2"
-#   railway_delete_env "$ENV_ID"
-# =============================================================================
-
 set -e
 
 RAILWAY_API="https://backboard.railway.app/graphql/v2"
 
-# -----------------------------------------------------------------------------
-# _gql <query_json>
-# Makes a GraphQL request. Returns the full JSON response.
-# Exits with error if the response contains errors.
-# -----------------------------------------------------------------------------
 _gql() {
-  RESPONSE=$(curl -sf -X POST "$RAILWAY_API" \
+  RESP=$(curl -sf -X POST "$RAILWAY_API" \
     -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$1")
-
-  if echo "$RESPONSE" | jq -e '.errors' >/dev/null 2>&1; then
+  if echo "$RESP" | jq -e '.errors' >/dev/null 2>&1; then
     echo "Railway API error:"
-    echo "$RESPONSE" | jq -c '.errors'
+    echo "$RESP" | jq -c '.errors'
     exit 1
   fi
-
-  echo "$RESPONSE"
+  echo "$RESP"
 }
 
 # -----------------------------------------------------------------------------
 # railway_get_env_id <name>
-# Sets RAILWAY_ENV_ID to the ID of the environment with the given name,
-# or empty string if not found.
+# Sets RAILWAY_ENV_ID — empty string if not found
 # -----------------------------------------------------------------------------
 railway_get_env_id() {
   ENV_NAME="$1"
-  QUERY=$(jq -nc --arg id "$RAILWAY_PROJECT_ID" '{
-    query: "query($id:String!){ project(id:$id){ environments{ edges{ node{ id name } } } } }",
-    variables: { id: $id }
-  }')
-
-  RAILWAY_ENV_ID=$(_gql "$QUERY" \
-    | jq -r ".data.project.environments.edges[] | select(.node.name==\"${ENV_NAME}\") | .node.id" \
+  RAILWAY_ENV_ID=$(_gql "$(jq -nc --arg id "$RAILWAY_PROJECT_ID" \
+    '{query:"query($id:String!){project(id:$id){environments{edges{node{id name}}}}}",variables:{id:$id}}')" \
+    | jq -r ".data.project.environments.edges[] \
+        | select(.node.name==\"${ENV_NAME}\") | .node.id" \
     | head -n1)
-
   export RAILWAY_ENV_ID
 }
 
 # -----------------------------------------------------------------------------
-# railway_create_env <name>
-# Creates a Railway environment. Sets RAILWAY_ENV_ID to the new env's ID.
+# railway_get_or_create_preview_env <name>
+# Creates a DUPLICATE of the dev environment (so all services come with it).
+# Sets RAILWAY_ENV_ID.
 # -----------------------------------------------------------------------------
-railway_create_env() {
+railway_get_or_create_preview_env() {
   ENV_NAME="$1"
-  echo "==> Creating Railway environment: ${ENV_NAME}"
+  SOURCE_ENV_ID="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
 
-  QUERY=$(jq -nc --arg p "$RAILWAY_PROJECT_ID" --arg n "$ENV_NAME" '{
-    query: "mutation($i:EnvironmentCreateInput!){ environmentCreate(input:$i){ id name } }",
-    variables: { i: { projectId: $p, name: $n } }
-  }')
-
-  RAILWAY_ENV_ID=$(_gql "$QUERY" | jq -r '.data.environmentCreate.id')
-  echo "==> Created environment '${ENV_NAME}' → ${RAILWAY_ENV_ID}"
-  export RAILWAY_ENV_ID
-}
-
-# -----------------------------------------------------------------------------
-# railway_get_or_create_env <name>
-# Gets existing env or creates it. Always sets RAILWAY_ENV_ID.
-# -----------------------------------------------------------------------------
-railway_get_or_create_env() {
-  ENV_NAME="$1"
+  # Check if it already exists
   railway_get_env_id "$ENV_NAME"
 
   if [ -z "$RAILWAY_ENV_ID" ] || [ "$RAILWAY_ENV_ID" = "null" ]; then
-    railway_create_env "$ENV_NAME"
-    sleep 3  # give Railway a moment to propagate the new env
+    if [ -z "$SOURCE_ENV_ID" ]; then
+      echo "ERROR: RAILWAY_ENVIRONMENT_ID_DEV must be set to create preview environments"
+      echo "       Set it to your development environment ID in GitLab CI/CD variables"
+      exit 1
+    fi
+
+    echo "==> Creating preview environment '${ENV_NAME}' (duplicating dev: ${SOURCE_ENV_ID})"
+
+    # Duplicate the dev environment — this copies all services + their config
+    # The new environment starts with staged changes (not yet deployed)
+    RAILWAY_ENV_ID=$(_gql "$(jq -nc \
+      --arg p "$RAILWAY_PROJECT_ID" \
+      --arg n "$ENV_NAME" \
+      --arg src "$SOURCE_ENV_ID" \
+      '{
+        query: "mutation($i:EnvironmentCreateInput!){environmentCreate(input:$i){id name}}",
+        variables: {
+          i: {
+            projectId: $p,
+            name: $n,
+            sourceEnvironmentId: $src
+          }
+        }
+      }')" | jq -r '.data.environmentCreate.id')
+
+    sleep 5  # Give Railway time to copy the services
+    echo "==> Created '${ENV_NAME}' = ${RAILWAY_ENV_ID}"
   else
-    echo "==> Found existing environment '${ENV_NAME}' → ${RAILWAY_ENV_ID}"
+    echo "==> Found existing environment '${ENV_NAME}' = ${RAILWAY_ENV_ID}"
   fi
+
+  export RAILWAY_ENV_ID
 }
 
 # -----------------------------------------------------------------------------
 # railway_delete_env <env_id>
-# Deletes a Railway environment and all its deployments.
+# Deletes a Railway environment. Services remain in other environments.
 # -----------------------------------------------------------------------------
 railway_delete_env() {
   ENV_ID="$1"
   echo "==> Deleting Railway environment: ${ENV_ID}"
-
-  QUERY=$(jq -nc --arg id "$ENV_ID" '{
-    query: "mutation($id:String!){ environmentDelete(id:$id) }",
-    variables: { id: $id }
-  }')
-
-  _gql "$QUERY" > /dev/null
-  echo "==> Deleted environment ${ENV_ID}"
+  _gql "$(jq -nc --arg id "$ENV_ID" \
+    '{query:"mutation($id:String!){environmentDelete(id:$id)}",variables:{id:$id}}')" \
+    > /dev/null
+  echo "==> Deleted (services still exist in development)"
 }
 
 # -----------------------------------------------------------------------------
-# railway_get_service_id <env_id> <service_name>
-# Sets RAILWAY_SERVICE_ID to the service's ID in the given environment,
-# or empty string if not found.
+# railway_get_service_ids
+# Fetches all service IDs for the project.
+# Sets SERVICE_IDS as JSON: {"synapse": "id", "mas": "id", ...}
 # -----------------------------------------------------------------------------
-railway_get_service_id() {
-  ENV_ID="$1"
-  SVC_NAME="$2"
-
-  QUERY=$(jq -nc --arg id "$RAILWAY_PROJECT_ID" '{
-    query: "query($id:String!){ project(id:$id){ services{ edges{ node{ id name } } } } }",
-    variables: { id: $id }
-  }')
-
-  RAILWAY_SERVICE_ID=$(_gql "$QUERY" \
-    | jq -r ".data.project.services.edges[] | select(.node.name==\"${SVC_NAME}\") | .node.id" \
-    | head -n1)
-
-  export RAILWAY_SERVICE_ID
+railway_get_service_ids() {
+  SERVICE_IDS=$(_gql "$(jq -nc --arg id "$RAILWAY_PROJECT_ID" \
+    '{query:"query($id:String!){project(id:$id){services{edges{node{id name}}}}}",variables:{id:$id}}')" \
+    | jq '[.data.project.services.edges[].node | {(.name): .id}] | add // {}')
+  echo "==> Found $(echo "$SERVICE_IDS" | jq 'keys | length') services in project"
+  export SERVICE_IDS
 }
 
-# -----------------------------------------------------------------------------
-# railway_create_service <env_id> <name> <image>
-# Creates a service in the given environment with a Docker image source.
-# Sets RAILWAY_SERVICE_ID to the new service's ID.
-# -----------------------------------------------------------------------------
-railway_create_service() {
-  ENV_ID="$1"
-  SVC_NAME="$2"
-  IMAGE="$3"
-
-  echo "==> Creating service '${SVC_NAME}' with image ${IMAGE}"
-
-  QUERY=$(jq -nc \
-    --arg p "$RAILWAY_PROJECT_ID" \
-    --arg n "$SVC_NAME" \
-    '{
-      query: "mutation($i:ServiceCreateInput!){ serviceCreate(input:$i){ id name } }",
-      variables: { i: { projectId: $p, name: $n } }
-    }')
-
-  RAILWAY_SERVICE_ID=$(_gql "$QUERY" | jq -r '.data.serviceCreate.id')
-  echo "==> Created service '${SVC_NAME}' → ${RAILWAY_SERVICE_ID}"
-
-  # Connect the image source (separate call — triggers first deploy)
-  railway_update_service_image "$ENV_ID" "$RAILWAY_SERVICE_ID" "$IMAGE"
-
-  export RAILWAY_SERVICE_ID
-}
-
-# -----------------------------------------------------------------------------
-# railway_get_or_create_service <env_id> <name> <image>
-# Gets existing service or creates it. Always sets RAILWAY_SERVICE_ID.
-# -----------------------------------------------------------------------------
-railway_get_or_create_service() {
-  ENV_ID="$1"
-  SVC_NAME="$2"
-  IMAGE="$3"
-
-  railway_get_service_id "$ENV_ID" "$SVC_NAME"
-
-  if [ -z "$RAILWAY_SERVICE_ID" ] || [ "$RAILWAY_SERVICE_ID" = "null" ]; then
-    railway_create_service "$ENV_ID" "$SVC_NAME" "$IMAGE"
-  else
-    echo "==> Found existing service '${SVC_NAME}' → ${RAILWAY_SERVICE_ID}"
-    # Update image to the new tag
-    railway_update_service_image "$ENV_ID" "$RAILWAY_SERVICE_ID" "$IMAGE"
-  fi
+# Helper — get a single service ID by name from SERVICE_IDS
+_id() {
+  echo "$SERVICE_IDS" | jq -r ".\"$1\" // empty"
 }
 
 # -----------------------------------------------------------------------------
 # railway_update_service_image <env_id> <service_id> <image>
-# Updates the Docker image source for a service instance.
-# Uses serviceInstanceUpdate with the image source.
+# Updates the Docker image for a service in a specific environment.
+# NOTE: Also calls redeploy — Railway requires a separate redeploy trigger
+# after updating image source.
 # -----------------------------------------------------------------------------
 railway_update_service_image() {
   ENV_ID="$1"
   SVC_ID="$2"
   IMAGE="$3"
 
-  echo "==> Updating service ${SVC_ID} image → ${IMAGE}"
+  echo "==> Image: ${SVC_ID} → ${IMAGE}"
 
-  QUERY=$(jq -nc \
+  # Update the image source
+  _gql "$(jq -nc \
     --arg e "$ENV_ID" \
     --arg s "$SVC_ID" \
     --arg img "$IMAGE" \
     '{
-      query: "mutation($i:ServiceInstanceUpdateInput!){ serviceInstanceUpdate(input:$i) }",
-      variables: {
-        i: {
-          environmentId: $e,
-          serviceId: $s,
-          source: { image: $img }
-        }
-      }
-    }')
+      query: "mutation($e:String!,$s:String!,$i:ServiceInstanceUpdateInput!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:$i)}",
+      variables: { e: $e, s: $s, i: { source: { image: $img } } }
+    }')" > /dev/null
 
-  _gql "$QUERY" > /dev/null
+  # Trigger redeploy — required, serviceInstanceUpdate alone does not deploy
+  _gql "$(jq -nc \
+    --arg e "$ENV_ID" \
+    --arg s "$SVC_ID" \
+    '{
+      query: "mutation($e:String!,$s:String!){serviceInstanceRedeploy(environmentId:$e,serviceId:$s)}",
+      variables: { e: $e, s: $s }
+    }')" > /dev/null
 }
 
 # -----------------------------------------------------------------------------
-# railway_upsert_vars <env_id> <service_id> <key=value> [<key=value> ...]
-# Sets multiple variables for a service in one API call.
-# Uses replace:false so existing vars not in the list are preserved.
-#
-# Supports Railway reference syntax: "MY_VAR=\${{other-service.SOME_VAR}}"
-# These are stored as-is and Railway resolves them at runtime.
+# railway_upsert_vars <env_id> <service_id> <KEY=VALUE> [<KEY=VALUE> ...]
+# Sets variables for a service in a specific environment.
+# Existing variables NOT in this list are preserved (replace: false).
+# Supports Railway reference syntax: "VAR=\${{other-service.RAILWAY_PUBLIC_DOMAIN}}"
 # -----------------------------------------------------------------------------
 railway_upsert_vars() {
   ENV_ID="$1"
   SVC_ID="$2"
   shift 2
 
-  # Build the variables JSON object from key=value arguments
   VARS_JSON="{}"
   for pair in "$@"; do
     KEY="${pair%%=*}"
@@ -231,15 +162,15 @@ railway_upsert_vars() {
     VARS_JSON=$(echo "$VARS_JSON" | jq --arg k "$KEY" --arg v "$VAL" '. + {($k): $v}')
   done
 
-  echo "==> Upserting $(echo "$VARS_JSON" | jq 'keys | length') variables for service ${SVC_ID}"
+  echo "==> Setting $(echo "$VARS_JSON" | jq 'keys | length') variables on service ${SVC_ID}"
 
-  QUERY=$(jq -nc \
+  _gql "$(jq -nc \
     --arg p "$RAILWAY_PROJECT_ID" \
     --arg e "$ENV_ID" \
     --arg s "$SVC_ID" \
     --argjson vars "$VARS_JSON" \
     '{
-      query: "mutation($i:VariableCollectionUpsertInput!){ variableCollectionUpsert(input:$i) }",
+      query: "mutation($i:VariableCollectionUpsertInput!){variableCollectionUpsert(input:$i)}",
       variables: {
         i: {
           projectId: $p,
@@ -249,30 +180,7 @@ railway_upsert_vars() {
           replace: false
         }
       }
-    }')
+    }')" > /dev/null
 
-  _gql "$QUERY" > /dev/null
-  echo "==> Variables set"
-}
-
-# -----------------------------------------------------------------------------
-# railway_redeploy <env_id> <service_id>
-# Triggers a new deployment for a service.
-# -----------------------------------------------------------------------------
-railway_redeploy() {
-  ENV_ID="$1"
-  SVC_ID="$2"
-
-  echo "==> Triggering redeploy for service ${SVC_ID}"
-
-  QUERY=$(jq -nc \
-    --arg e "$ENV_ID" \
-    --arg s "$SVC_ID" \
-    '{
-      query: "mutation($i:ServiceInstanceDeployInput!){ serviceInstanceDeploy(input:$i) }",
-      variables: { i: { environmentId: $e, serviceId: $s } }
-    }')
-
-  _gql "$QUERY" > /dev/null
-  echo "==> Redeploy triggered"
+  echo "==> Done"
 }

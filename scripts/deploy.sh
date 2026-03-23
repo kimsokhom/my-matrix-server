@@ -1,37 +1,69 @@
 #!/bin/sh
 # =============================================================================
-# deploy.sh — Sets Railway service variables after tofu apply
+# deploy.sh — Sets Railway service variables after environment is ready
 # =============================================================================
-# Called automatically by the CI pipeline.
-# Uses Railway GraphQL API directly so ${{service.VAR}} references
-# are stored correctly and resolved by Railway at container startup.
+# DEPLOY_MODE:
+#   dev     — services were created by tofu apply, read IDs from tofu output
+#   preview — services already exist (duplicated from dev), fetch IDs from API
 # =============================================================================
 
 set -e
 
-source "$(dirname "$0")/railway-api.sh"
+SCRIPT_DIR="$(dirname "$0")"
+source "${SCRIPT_DIR}/railway-api.sh"
 
-echo "==> Reading service IDs from OpenTofu output..."
-SERVICE_IDS=$(tofu output -json service_ids)
-
-_id() { echo "$SERVICE_IDS" | jq -r ".\"$1\""; }
-
-SYNAPSE_ID=$(     _id synapse)
-MAS_ID=$(          _id mas)
-ELEMENT_ID=$(      _id element)
-ELEMENT_CALL_ID=$( _id element-call)
-NGINX_ID=$(        _id nginx)
-TELEGRAM_ID=$(     _id telegram)
-PROV_ID=$(         _id provisioning-service)
-WIDGET_ID=$(       _id postmoogle-widget)
+DEPLOY_MODE="${DEPLOY_MODE:-dev}"
 
 echo ""
-echo "==> Setting variables for all services in environment: ${RAILWAY_ENV_ID}"
+echo "==> Deploy mode  : ${DEPLOY_MODE}"
+echo "==> Environment  : ${RAILWAY_ENV_ID}"
 echo ""
 
-# ---------------------------------------------------------------------------
-# SYNAPSE
-# ---------------------------------------------------------------------------
+# ── Get service IDs ──────────────────────────────────────────────────────────
+
+if [ "$DEPLOY_MODE" = "dev" ]; then
+  echo "==> Reading service IDs from OpenTofu output..."
+  TF_OUTPUT=$(tofu output -json service_ids)
+  _svc_id() { echo "$TF_OUTPUT" | jq -r ".\"$1\""; }
+else
+  echo "==> Fetching service IDs from Railway API..."
+  railway_get_service_ids
+  _svc_id() { _id "$1"; }
+fi
+
+SYNAPSE_ID=$(      _svc_id synapse)
+MAS_ID=$(          _svc_id mas)
+ELEMENT_ID=$(      _svc_id element)
+ELEMENT_CALL_ID=$( _svc_id element-call)
+NGINX_ID=$(        _svc_id nginx)
+TELEGRAM_ID=$(     _svc_id telegram)
+PROV_ID=$(         _svc_id provisioning-service)
+WIDGET_ID=$(       _svc_id postmoogle-widget)
+
+# ── Update images for preview environments ───────────────────────────────────
+# dev: tofu already updated the image during apply
+# preview: update each service to this branch's image tag + trigger redeploy
+
+if [ "$DEPLOY_MODE" = "preview" ]; then
+  echo "==> Updating service images to: ${IMAGE_TAG}"
+
+  EL_IMG="${ELEMENT_IMAGE:-${REGISTRY}/element:${IMAGE_TAG}}"
+
+  railway_update_service_image "$RAILWAY_ENV_ID" "$SYNAPSE_ID"      "${REGISTRY}/synapse:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$MAS_ID"          "${REGISTRY}/mas:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$ELEMENT_ID"      "$EL_IMG"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$ELEMENT_CALL_ID" "${REGISTRY}/element-call:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$NGINX_ID"        "${REGISTRY}/nginx:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$TELEGRAM_ID"     "${REGISTRY}/telegram:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$PROV_ID"         "${REGISTRY}/provisioning-service:${IMAGE_TAG}"
+  railway_update_service_image "$RAILWAY_ENV_ID" "$WIDGET_ID"       "${REGISTRY}/postmoogle-widget:${IMAGE_TAG}"
+fi
+
+echo ""
+echo "==> Setting variables for all services..."
+echo ""
+
+# ── SYNAPSE ───────────────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$SYNAPSE_ID" \
   "SERVER_NAME=${SERVER_NAME}" \
   "MACAROON_KEY=${MACAROON_KEY}" \
@@ -47,10 +79,7 @@ railway_upsert_vars "$RAILWAY_ENV_ID" "$SYNAPSE_ID" \
   "TELEGRAM_HS_TOKEN=${TELEGRAM_HS_TOKEN}" \
   "SYNAPSE_CONFIG_PATH=/etc/synapse/homeserver.yaml"
 
-# ---------------------------------------------------------------------------
-# MAS — Matrix Authentication Service
-# Railway resolves ${{synapse.RAILWAY_PUBLIC_DOMAIN}} at container startup
-# ---------------------------------------------------------------------------
+# ── MAS ───────────────────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$MAS_ID" \
   "SERVER_NAME=${SERVER_NAME}" \
   "MAS_ENCRYPTION_SECRET=${MAS_ENCRYPTION_SECRET}" \
@@ -68,30 +97,21 @@ railway_upsert_vars "$RAILWAY_ENV_ID" "$MAS_ID" \
   "ELEMENT_WEB_CLIENT_ID=${ELEMENT_WEB_CLIENT_ID}" \
   "ELEMENT_WEB_URL=https://\${{element.RAILWAY_PUBLIC_DOMAIN}}"
 
-# ---------------------------------------------------------------------------
-# ELEMENT (Web UI) — image from its own repo
-# ---------------------------------------------------------------------------
+# ── ELEMENT WEB ───────────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$ELEMENT_ID" \
   "SERVER_NAME=\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
   "SYNAPSE_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
   "MAS_URL=https://\${{mas.RAILWAY_PUBLIC_DOMAIN}}"
 
-# ---------------------------------------------------------------------------
-# ELEMENT CALL
-# ---------------------------------------------------------------------------
+# ── ELEMENT CALL ──────────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$ELEMENT_CALL_ID" \
   "SERVER_NAME=\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
   "SYNAPSE_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
 
-# ---------------------------------------------------------------------------
-# NGINX — routes public traffic to internal services
-# No variables needed — nginx.conf uses .railway.internal addresses directly
-# ---------------------------------------------------------------------------
-echo "==> nginx: no variables needed (uses static railway.internal config)"
+# ── NGINX — no vars needed (uses static railway.internal in nginx.conf) ───────
+echo "==> nginx: no variables needed"
 
-# ---------------------------------------------------------------------------
-# TELEGRAM bridge
-# ---------------------------------------------------------------------------
+# ── TELEGRAM ──────────────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$TELEGRAM_ID" \
   "SERVER_NAME=${SERVER_NAME}" \
   "TELEGRAM_AS_TOKEN=${TELEGRAM_AS_TOKEN}" \
@@ -104,9 +124,7 @@ railway_upsert_vars "$RAILWAY_ENV_ID" "$TELEGRAM_ID" \
   "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
   "REGISTRATION_SHARED_SECRET=${REGISTRATION_SHARED_SECRET}"
 
-# ---------------------------------------------------------------------------
-# PROVISIONING SERVICE
-# ---------------------------------------------------------------------------
+# ── PROVISIONING SERVICE ──────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$PROV_ID" \
   "HOMESERVER_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
   "ADMIN_ACCESS_TOKEN=${ADMIN_ACCESS_TOKEN}" \
@@ -115,11 +133,9 @@ railway_upsert_vars "$RAILWAY_ENV_ID" "$PROV_ID" \
   "BOT_USER_ID=${BOT_USER_ID:-}" \
   "PORT=3000"
 
-# ---------------------------------------------------------------------------
-# POSTMOOGLE WIDGET
-# ---------------------------------------------------------------------------
+# ── POSTMOOGLE WIDGET ─────────────────────────────────────────────────────────
 railway_upsert_vars "$RAILWAY_ENV_ID" "$WIDGET_ID" \
   "PORT=3000"
 
 echo ""
-echo "✅  All variables set. Railway resolves \${{service.VAR}} references at runtime."
+echo "✅  Done. Railway resolves \${{service.VAR}} references at container startup."
