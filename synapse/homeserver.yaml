@@ -50,7 +50,7 @@ enable_registration: false
 # Password configuration
 # Disable local password database
 password_config:
-  enabled: false
+  enabled: true
   localdb_enabled: false
   # minimum_length: 1
   # require_digit: false
@@ -69,7 +69,7 @@ app_service_config_files:
 
 # NATIVE MAS DELEGATION:
 matrix_authentication_service:
-  enabled: true
+  enabled: false
   endpoint: "${MAS_INTERNAL_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
   secret: "${MAS_SHARED_SECRET}"
 
