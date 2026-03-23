@@ -24,21 +24,43 @@ variable "environment" {
 }
 
 # Railway-specific
-variable "railway_token"    { type = string; sensitive = true; default = "" }
-variable "project_id"       { type = string; default = "" }
-variable "environment_id"   { type = string; default = "" }
+variable "railway_token"    {
+   type = string
+ sensitive = true
+  default = "" 
+  }
+variable "project_id"       { 
+  type = string
+ default = "" 
+ }
+variable "environment_id"   { 
+  type = string
+ default = "" 
+ }
 
 # AWS-specific
-variable "aws_region"     { type = string; default = "ap-southeast-1" }
-variable "project_name"   { type = string; default = "matrix" }
+variable "aws_region"     { 
+  type = string
+ default = "ap-southeast-1" 
+ }
+variable "project_name"   { 
+  type = string
+ default = "matrix" 
+ }
 
 # Registry (same for all providers)
 variable "registry"          { type = string }
 variable "registry_username" { type = string }
-variable "registry_password" { type = string; sensitive = true }
+variable "registry_password" { 
+  type = string
+ sensitive = true 
+ }
 
 # Image tag — set by CI (commit SHA, branch-slug, etc.)
-variable "image_tag" { type = string; default = "latest" }
+variable "image_tag" { 
+  type = string
+ default = "latest" 
+ }
 
 # Element Web image comes from its own repo
 variable "element_image" {

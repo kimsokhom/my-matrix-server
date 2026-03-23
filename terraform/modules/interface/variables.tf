@@ -44,4 +44,7 @@ variable "services" {
 }
 
 variable "registry_username" { type = string }
-variable "registry_password" { type = string; sensitive = true }
+variable "registry_password" { 
+  type = string
+  sensitive = true 
+  }

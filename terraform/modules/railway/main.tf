@@ -17,10 +17,22 @@ terraform {
   }
 }
 
-variable "railway_token"  { type = string; sensitive = true }
-variable "project_id"     { type = string }
-variable "environment_id" { type = string }
-variable "environment"    { type = string }
+variable "railway_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "project_id" {
+  type = string
+}
+
+variable "environment_id" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
 
 variable "services" {
   type = map(object({
@@ -32,7 +44,10 @@ variable "services" {
 }
 
 variable "registry_username" { type = string }
-variable "registry_password" { type = string; sensitive = true }
+variable "registry_password" {
+  type = string
+  sensitive = true
+}
 
 provider "railway" {
   token = var.railway_token
@@ -57,6 +72,14 @@ output "service_ids" {
   value       = { for name, svc in railway_service.services : name => svc.id }
 }
 
-output "environment_id" { value = var.environment_id }
-output "project_id"     { value = var.project_id }
-output "provider"       { value = "railway" }
+output "environment_id" {
+  value = var.environment_id
+}
+
+output "project_id" {
+  value = var.project_id
+}
+
+output "provider" {
+  value = "railway"
+}
