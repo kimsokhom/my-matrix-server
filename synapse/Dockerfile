@@ -6,7 +6,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # 2. Install the Shared Secret module using pip
-RUN python3 -m pip install --no-cache-dir shared-secret-authenticator==2.0.1
+RUN pip install --no-cache-dir --break-system-packages matrix-synapse-mas
 
 # Copy your configuration templates
 COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
