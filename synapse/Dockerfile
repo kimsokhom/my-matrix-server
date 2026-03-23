@@ -5,8 +5,8 @@ RUN apt-get update && \
     apt-get install -y gettext-base git python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-# 2. INSTALL THE MAS HELPER MODULE (This replaces the shared secret module)
-RUN pip3 install --no-cache-dir matrix-synapse-mas
+# 2. INSTALL THE MAS HELPER MODULE (Installing directly from GitHub)
+RUN pip3 install --no-cache-dir git+https://github.com/element-hq/matrix-synapse-mas.git
 
 # Copy your configuration templates
 COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
