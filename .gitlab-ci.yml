@@ -175,10 +175,13 @@ validate:opentofu:
 # =============================================================================
 # BASE TEMPLATES
 # =============================================================================
-# FIX: TF_BACKEND_BASE + TF_HTTP_* are exported in before_script.
-# Every plan/deploy job does its own cd + tofu init in a single shell block
-# so the working directory and credentials are always correct for both
-# init AND the state lock acquired during plan/apply.
+# KEY FIX: Use TF_HTTP_* environment variables instead of -backend-config flags.
+# OpenTofu's HTTP backend reads these env vars natively for ALL operations
+# including state locking — so both init and plan/apply use the same credentials.
+#
+# TF_HTTP_ADDRESS, TF_HTTP_LOCK_ADDRESS, TF_HTTP_UNLOCK_ADDRESS,
+# TF_HTTP_USERNAME, TF_HTTP_PASSWORD, TF_HTTP_LOCK_METHOD, TF_HTTP_UNLOCK_METHOD
+# are all set per-job based on TF_STATE_KEY.
 
 .tofu_base:
   image:
@@ -186,6 +189,7 @@ validate:opentofu:
     entrypoint: [""]
   before_script:
     - apk add --no-cache jq curl
+    # App variables
     - export TF_VAR_provider_type="${PROVIDER_TYPE:-railway}"
     - export TF_VAR_railway_token="${RAILWAY_TOKEN:-}"
     - export TF_VAR_project_id="${RAILWAY_PROJECT_ID:-}"
@@ -200,11 +204,8 @@ validate:opentofu:
       else
         export TF_VAR_element_image="${REGISTRY}/element:${CI_COMMIT_SHA}"
       fi
-    # Backend credentials — used by tofu init AND state locking
-    - export TF_BACKEND_BASE="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state"
-    - export TF_HTTP_USERNAME="gitlab-ci-token"
-    - export TF_HTTP_PASSWORD="${CI_JOB_TOKEN}"
 
+# Railway env resolve/create — sets RAILWAY_ENV_ID and TF_VAR_environment_id
 .resolve_env: &resolve_env |
   if [ "${TF_VAR_provider_type}" = "railway" ]; then
     RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
@@ -250,6 +251,21 @@ validate:opentofu:
   [ -z "$RAILWAY_ENV_NAME" ] && RAILWAY_ENV_NAME="branch-${CI_COMMIT_SHORT_SHA}"
   export RAILWAY_ENV_NAME
 
+# Sets TF_HTTP_* env vars so OpenTofu HTTP backend uses them for ALL operations
+# including state locking. Must be called before tofu init in every job.
+# Requires TF_STATE_KEY to be set (done via job variables:)
+.set_tf_http_vars: &set_tf_http_vars |
+  _BASE="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state"
+  export TF_HTTP_ADDRESS="${_BASE}/${TF_STATE_KEY}"
+  export TF_HTTP_LOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_UNLOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_USERNAME="gitlab-ci-token"
+  export TF_HTTP_PASSWORD="${CI_JOB_TOKEN}"
+  export TF_HTTP_LOCK_METHOD="POST"
+  export TF_HTTP_UNLOCK_METHOD="DELETE"
+  export TF_HTTP_RETRY_WAIT_MIN="5"
+  echo "==> Backend: ${TF_HTTP_ADDRESS}"
+
 .build_needs: &build_needs
   - validate:opentofu
   - { job: build:synapse,              optional: true }
@@ -260,10 +276,6 @@ validate:opentofu:
   - { job: build:telegram,             optional: true }
   - { job: build:provisioning-service, optional: true }
   - { job: build:postmoogle-widget,    optional: true }
-
-# Reusable tofu init block — paste inside every cd block
-# (YAML anchors cannot expand mid-shell-block, so this is inlined per job)
-# Backend address = TF_BACKEND_BASE/TF_STATE_KEY (set per job in variables:)
 
 # =============================================================================
 # PLAN — branch preview
@@ -278,18 +290,10 @@ plan:branch:
   script:
     - *sanitise_branch
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
       export TF_VAR_environment="${RAILWAY_ENV_NAME}"
       tofu plan -out=tfplan
@@ -317,18 +321,10 @@ plan:staging:
       RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
       export RAILWAY_ENV_NAME
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
       export TF_VAR_environment="staging"
       tofu plan -out=tfplan
@@ -355,18 +351,10 @@ plan:dev:
       export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
       export TF_VAR_environment="dev"
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       tofu plan -out=tfplan
   artifacts:
     paths: [terraform/environments/dev/tfplan]
@@ -388,22 +376,13 @@ deploy:branch:
   script:
     - *sanitise_branch
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
       export TF_VAR_environment="${RAILWAY_ENV_NAME}"
       tofu apply -auto-approve ${CI_PROJECT_DIR}/terraform/environments/${TF_ENV}/tfplan
-      export RAILWAY_ENV_ID="${RAILWAY_ENV_ID}"
       sh ${CI_PROJECT_DIR}/scripts/deploy.sh
   environment:
     name: preview/branch-${CI_COMMIT_REF_SLUG}
@@ -425,18 +404,10 @@ cleanup:branch:
   script:
     - *sanitise_branch
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="branch-${CI_COMMIT_REF_SLUG}"
       export TF_VAR_environment="${RAILWAY_ENV_NAME}"
       tofu destroy -auto-approve
@@ -467,22 +438,13 @@ deploy:staging:
       RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
       export RAILWAY_ENV_NAME
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
       export TF_VAR_environment="staging"
       tofu apply -auto-approve ${CI_PROJECT_DIR}/terraform/environments/${TF_ENV}/tfplan
-      export RAILWAY_ENV_ID="${RAILWAY_ENV_ID}"
       sh ${CI_PROJECT_DIR}/scripts/deploy.sh
   environment:
     name: staging/mr-${CI_MERGE_REQUEST_IID}
@@ -503,18 +465,10 @@ cleanup:staging:
       RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
       export RAILWAY_ENV_NAME
     - *resolve_env
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       export TF_VAR_image_tag="staging-${CI_MERGE_REQUEST_IID}"
       export TF_VAR_environment="staging"
       tofu destroy -auto-approve
@@ -544,18 +498,10 @@ deploy:dev:
       export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
       export TF_VAR_environment="dev"
       export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+    - *set_tf_http_vars
     - |
       cd ${TF_ROOT}/environments/${TF_ENV}
-      tofu init \
-        -backend-config="address=${TF_BACKEND_BASE}/${TF_STATE_KEY}" \
-        -backend-config="lock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="unlock_address=${TF_BACKEND_BASE}/${TF_STATE_KEY}/lock" \
-        -backend-config="lock_method=POST" \
-        -backend-config="unlock_method=DELETE" \
-        -backend-config="username=${TF_HTTP_USERNAME}" \
-        -backend-config="password=${TF_HTTP_PASSWORD}" \
-        -backend-config="retry_wait_min=5" \
-        -input=false -reconfigure
+      tofu init -input=false
       tofu apply -auto-approve ${CI_PROJECT_DIR}/terraform/environments/${TF_ENV}/tfplan
       sh ${CI_PROJECT_DIR}/scripts/deploy.sh
   environment:
