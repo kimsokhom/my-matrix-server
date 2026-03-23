@@ -33,10 +33,10 @@ form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
 # Used for Postmoogle to log in (The Plugin you are installing)
-# password_providers:
-#   - module: "shared_secret_authenticator.SharedSecretAuthProvider"
-#     config:
-#       shared_secret: "${POSTMOOGLE_SHAREDSECRET}"
+password_providers:
+  - module: "shared_secret_authenticator.SharedSecretAuthProvider"
+    config:
+      shared_secret: "${POSTMOOGLE_SHAREDSECRET}"
 
 # trusted_third_party_id_servers:
 #   - "${MAS_URL}"
@@ -50,8 +50,8 @@ enable_registration: false
 # Password configuration
 # Disable local password database
 password_config:
-  enabled: false
-  localdb_enabled: false
+  enabled: true
+  localdb_enabled: true
   # minimum_length: 1
   # require_digit: false
   # require_symbol: false
@@ -68,10 +68,10 @@ app_service_config_files:
   - /data/postmoogle-registration.yaml
 
 # NATIVE MAS DELEGATION:
-matrix_authentication_service:
-  enabled: true
-  endpoint: "${MAS_INTERNAL_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
-  secret: "${MAS_SHARED_SECRET}"
+# matrix_authentication_service:
+#   enabled: true
+#   endpoint: "${MAS_INTERNAL_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
+#   secret: "${MAS_SHARED_SECRET}"
 
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
