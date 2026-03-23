@@ -34,7 +34,7 @@ registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
 # Used for Postmoogle to log in (The Plugin you are installing)
 password_providers:
-  - module: "shared_secret_authenticator.SharedSecretAuthenticator"
+  - module: "shared_secret_authenticator.SharedSecretAuthProvider"
     config:
       shared_secret: "${POSTMOOGLE_SHAREDSECRET}"
 
