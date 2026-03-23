@@ -1,0 +1,65 @@
+http:
+  public_base: "${MAS_URL}/"
+  listeners:
+    - name: web
+      resources:
+        - name: discovery
+        - name: human
+        - name: oauth
+        - name: compat
+        - name: graphql
+        - name: assets
+      binds:
+        - address: "0.0.0.0:8008"
+
+database:
+  uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+
+secrets:
+  encryption: "${MAS_ENCRYPTION_SECRET}"
+  keys:
+    - kid: "mas-rsa-key-1"
+      key: "${MAS_RSA_PRIVATE_KEY}" # Use "key" here, NOT "key_file"
+
+matrix:
+  homeserver: "${SERVER_NAME}" # Must match `server_name` in Synapse config, NOT a URL
+  secret: "${MAS_SHARED_SECRET}" # Must match the secret in Synapse's `matrix_authentication_service`
+  endpoint: "http://synapse.railway.internal:8008" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
+
+# OIDC Client configuration (commented out - using native MAS delegation instead)
+clients:
+  - client_id: "${MAS_CLIENT_ID}"
+    client_auth_method: "client_secret_basic"
+    client_secret: "${MAS_CLIENT_SECRET}"
+    redirect_uris:
+      - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
+      - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
+
+  - client_id: "${ELEMENT_WEB_CLIENT_ID}"
+    client_auth_method: "none"
+    redirect_uris:
+      - "${ELEMENT_WEB_URL}/#/welcome"
+      - "${ELEMENT_WEB_URL}/"
+      - "${ELEMENT_WEB_URL}/?no_universal_links=true"
+
+templates:
+  path: /usr/local/share/mas-cli/templates
+  assets_manifest: /usr/local/share/mas-cli/manifest.json
+
+branding:
+  service_name: "My Matrix Server"
+
+passwords:
+  enabled: true
+  schemes:
+    - version: 1
+      algorithm: bcrypt
+    - version: 2
+      algorithm: argon2id
+
+account:
+  # This makes the Username and Password text boxes appear
+  password_registration_enabled: true
+
+  # This allows users to register without needing to click an email verification link
+  password_registration_email_required: false

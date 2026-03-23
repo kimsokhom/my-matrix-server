@@ -1,0 +1,30 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Data directories
+synapse-data/
+telegram-data/
+
+# Secrets
+*.key
+*.signing.key
+signing.key
+mas_rsa.pem
+mas_rsa.pub
+*.pem
+*.key
+
+# OpenTofu/Terraform local artifacts
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep lock files in VCS for deterministic provider versions
+!.terraform.lock.hcl

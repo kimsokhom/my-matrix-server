@@ -1,0 +1,101 @@
+server_name: "${SERVER_NAME}"
+public_baseurl: "https://${SERVER_NAME}/"
+pid_file: /data/homeserver.pid
+media_store_path: /data/media_store
+signing_key_path: "/data/signing.key"
+
+listeners:
+  - port: 8008
+    bind_addresses: ["0.0.0.0"]
+    type: http
+    tls: false
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: false
+
+database:
+  name: psycopg2
+  allow_unsafe_locale: true
+  args:
+    user: "${POSTGRES_USER}"
+    password: "${POSTGRES_PASSWORD}"
+    host: "${POSTGRES_HOST}"
+    database: "synapse"
+    port: ${POSTGRES_PORT}
+    cp_min: 5
+    cp_max: 10
+
+suppress_key_server_warning: true
+macaroon_secret_key: "${MACAROON_KEY}"
+form_secret: "${FORM_SECRET}"
+registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
+
+# trusted_third_party_id_servers:
+#   - "${MAS_URL}"
+
+# Disable direct Synapse registration; MAS handles this now
+enable_registration: false
+
+# # Old registration settings (disabled; MAS is now auth provider)
+# enable_registration_without_verification: true
+
+# Password configuration
+# Disable local password database
+password_config:
+  enabled: false
+  localdb_enabled: false
+  # minimum_length: 1
+  # require_digit: false
+  # require_symbol: false
+  # require_uppercase: false
+  # require_lowercase: false
+
+serve_server_well_known: true
+serve_client_well_known: true
+enable_metrics: false
+report_stats: false
+
+app_service_config_files:
+  - /etc/synapse/registration.yaml
+  - /data/postmoogle-registration.yaml
+
+# NATIVE MAS DELEGATION:
+matrix_authentication_service:
+  enabled: true
+  endpoint: "${MAS_INTERNAL_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
+  secret: "${MAS_SHARED_SECRET}"
+
+extra_well_known_client_content:
+  "org.matrix.msc4143.rtc_foci":
+    - type: "livekit"
+      livekit_service_url: "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+
+experimental_features:
+  # Required for Element Call / MatrixRTC
+  msc3266_enabled: true
+  msc4143_enabled: true
+  msc4222_enabled: true
+
+# required for Element Call stability
+max_event_delay_duration: 24h
+
+rc_message:
+  per_second: 0.5
+  burst_count: 30
+
+rc_delayed_event_mgmt:
+  per_second: 1
+  burst_count: 20
+
+allow_cors: true
+
+# # OIDC PROVIDER CONFIGURATION (alternative method - commented out in favor of native MAS delegation)
+# oidc_providers:
+#   - idp_id: mas
+#     idp_name: "Matrix Authentication Service"
+#     discover: true
+#     issuer: "${MAS_URL}"
+#     client_id: "${MAS_CLIENT_ID}"
+#     client_secret: "${MAS_CLIENT_SECRET}"
+#     scopes: ["openid", "profile"]
