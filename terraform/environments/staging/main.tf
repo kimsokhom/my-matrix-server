@@ -84,6 +84,8 @@ provider "railway" {
 
 provider "aws" {
   region                      = var.aws_region
+  access_key                  = var.provider_type == "aws" ? null : "dummy"
+  secret_key                  = var.provider_type == "aws" ? null : "dummy"
   skip_credentials_validation = var.provider_type != "aws"
   skip_requesting_account_id  = var.provider_type != "aws"
   skip_metadata_api_check     = var.provider_type != "aws"
