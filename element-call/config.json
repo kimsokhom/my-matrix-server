@@ -1,8 +1,8 @@
 {
   "default_server_config": {
     "m.homeserver": {
-      "base_url": "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app",
-      "server_name": "synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+      "base_url": "https://nginx-sengly-branch.up.railway.app",
+      "server_name": "nginx-sengly-branch.up.railway.app"
     }
   },
   "livekit": {
