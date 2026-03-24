@@ -1,0 +1,143 @@
+# =============================================================================
+# services.yaml — Single source of truth for ALL services
+# =============================================================================
+#
+# TO ADD A NEW SERVICE:
+#   1. Create <service-name>/Dockerfile in the repo root
+#   2. Add an entry below
+#   3. Add service name to build matrix in .gitlab-ci.yml (one line)
+#   4. Push — everything else is automatic
+#
+# TO REMOVE A SERVICE:
+#   1. Delete the entry below
+#   2. Push — OpenTofu removes it from Railway automatically
+#
+# SECRETS:
+#   List names under secrets: — must match GitLab CI/CD variable names exactly.
+#   deploy.sh reads them from GitLab and sends them to Railway automatically.
+#
+# RAILWAY REFERENCES (${{service.VAR}}):
+#   Railway resolves these at container startup — no hardcoded URLs needed.
+#   Use ${{RAILWAY_PUBLIC_DOMAIN}} for this service's own public URL.
+#   Use ${{Postgres.PGHOST}} etc. for the Railway Postgres service.
+#
+# =============================================================================
+
+services:
+
+  synapse:
+    port: 8008
+    memory: 2048
+    cpu: 1000
+    health_check_path: "/_matrix/client/versions"
+    secrets:
+      - MACAROON_KEY
+      - FORM_SECRET
+      - REGISTRATION_SHARED_SECRET
+      - MAS_SHARED_SECRET
+      - TELEGRAM_AS_TOKEN
+      - TELEGRAM_HS_TOKEN
+    env_vars:
+      SERVER_NAME: "${{RAILWAY_PUBLIC_DOMAIN}}"
+      SYNAPSE_CONFIG_PATH: "/etc/synapse/homeserver.yaml"
+      MAS_INTERNAL_URL: "http://mas.railway.internal:8008"
+      LIVEKIT_JWT_SERVICE_URL: "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}/livekit/jwt"
+      POSTGRES_HOST: "${{Postgres.PGHOST}}"
+      POSTGRES_PORT: "${{Postgres.PGPORT}}"
+      POSTGRES_USER: "${{Postgres.PGUSER}}"
+      POSTGRES_PASSWORD: "${{Postgres.PGPASSWORD}}"
+      POSTGRES_DB: "${{Postgres.PGDATABASE}}"
+
+  mas:
+    port: 8008
+    memory: 1024
+    cpu: 500
+    health_check_path: "/health"
+    secrets:
+      - MAS_ENCRYPTION_SECRET
+      - MAS_SHARED_SECRET
+      - MAS_CLIENT_ID
+      - MAS_CLIENT_SECRET
+      - MAS_RSA_PRIVATE_KEY
+      - ELEMENT_WEB_CLIENT_ID
+    env_vars:
+      MAS_URL: "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}"
+      SYNAPSE_URL: "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}"
+      ELEMENT_WEB_URL: "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}"
+      POSTGRES_HOST: "${{Postgres.PGHOST}}"
+      POSTGRES_PORT: "${{Postgres.PGPORT}}"
+      POSTGRES_USER: "${{Postgres.PGUSER}}"
+      POSTGRES_PASSWORD: "${{Postgres.PGPASSWORD}}"
+      POSTGRES_DB: "${{Postgres.PGDATABASE}}"
+
+  element:
+    port: 80
+    memory: 512
+    cpu: 250
+    health_check_path: "/"
+    secrets:
+      - ELEMENT_WEB_CLIENT_ID
+    env_vars:
+      SERVER_NAME: "${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      SYNAPSE_URL: "https://${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      MAS_URL: "https://${{mas.RAILWAY_PUBLIC_DOMAIN}}"
+      WIDGET_URL: "https://${{postmoogle-widget.RAILWAY_PUBLIC_DOMAIN}}"
+
+  element-call:
+    port: 80
+    memory: 512
+    cpu: 250
+    health_check_path: "/"
+    secrets: []
+    env_vars:
+      SERVER_NAME: "${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      SYNAPSE_URL: "https://${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      LIVEKIT_JWT_SERVICE_URL: "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}/livekit/jwt"
+      LIVEKIT_URL: "wss://${{nginx.RAILWAY_PUBLIC_DOMAIN}}"
+
+  nginx:
+    port: 80
+    memory: 256
+    cpu: 125
+    health_check_path: "/"
+    secrets: []
+    env_vars: {}
+
+  telegram:
+    port: 29317
+    memory: 512
+    cpu: 250
+    health_check_path: "/health"
+    secrets:
+      - TELEGRAM_AS_TOKEN
+      - TELEGRAM_HS_TOKEN
+      - TELEGRAM_API_ID
+      - TELEGRAM_API_HASH
+      - REGISTRATION_SHARED_SECRET
+    env_vars:
+      SERVER_NAME: "${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      POSTGRES_HOST: "${{Postgres.PGHOST}}"
+      POSTGRES_PORT: "${{Postgres.PGPORT}}"
+      POSTGRES_USER: "${{Postgres.PGUSER}}"
+      POSTGRES_PASSWORD: "${{Postgres.PGPASSWORD}}"
+
+  provisioning-service:
+    port: 3000
+    memory: 512
+    cpu: 250
+    health_check_path: "/health"
+    secrets:
+      - ADMIN_ACCESS_TOKEN
+    env_vars:
+      PORT: "3000"
+      HOMESERVER_URL: "https://${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+      WIDGET_URL: "https://${{postmoogle-widget.RAILWAY_PUBLIC_DOMAIN}}"
+
+  postmoogle-widget:
+    port: 3000
+    memory: 256
+    cpu: 125
+    health_check_path: "/"
+    secrets: []
+    env_vars:
+      PORT: "3000"

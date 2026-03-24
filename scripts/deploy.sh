@@ -1,141 +1,160 @@
 #!/bin/sh
 # =============================================================================
-# deploy.sh — Sets Railway service variables after environment is ready
+# deploy.sh — Sets Railway variables for all services
 # =============================================================================
+# Reads terraform/services.yaml — no hardcoding.
+# Adding a service to services.yaml is all that's needed here.
+#
 # DEPLOY_MODE:
-#   dev     — services were created by tofu apply, read IDs from tofu output
-#   preview — services already exist (duplicated from dev), fetch IDs from API
+#   dev     — reads service IDs from tofu output (services just created)
+#   preview — fetches service IDs from Railway API (services already exist)
 # =============================================================================
 
 set -e
 
-SCRIPT_DIR="$(dirname "$0")"
-source "${SCRIPT_DIR}/railway-api.sh"
+# Install pyyaml — needed to read services.yaml
+pip3 install --quiet --break-system-packages pyyaml 2>/dev/null || \
+  apk add --no-cache py3-yaml 2>/dev/null || true
 
-DEPLOY_MODE="${DEPLOY_MODE:-dev}"
+python3 - << 'PYTHON'
+import os, sys, json, yaml, urllib.request, urllib.error, subprocess
 
-echo ""
-echo "==> Deploy mode  : ${DEPLOY_MODE}"
-echo "==> Environment  : ${RAILWAY_ENV_ID}"
-echo ""
+RAILWAY_API   = "https://backboard.railway.app/graphql/v2"
+TOKEN         = os.environ["RAILWAY_TOKEN"]
+PROJECT_ID    = os.environ["RAILWAY_PROJECT_ID"]
+ENV_ID        = os.environ["RAILWAY_ENV_ID"]
+DEPLOY_MODE   = os.environ.get("DEPLOY_MODE", "dev")
+IMAGE_TAG     = os.environ.get("IMAGE_TAG", "latest")
+REGISTRY      = os.environ.get("REGISTRY", "")
+ELEMENT_IMAGE = os.environ.get("ELEMENT_IMAGE", "")
+PROJECT_DIR   = os.environ.get("CI_PROJECT_DIR", ".")
+SERVICES_YAML = f"{PROJECT_DIR}/terraform/services.yaml"
 
-# ── Get service IDs ──────────────────────────────────────────────────────────
+print(f"\n==> Deploy mode  : {DEPLOY_MODE}")
+print(f"==> Environment  : {ENV_ID}")
 
-if [ "$DEPLOY_MODE" = "dev" ]; then
-  echo "==> Reading service IDs from OpenTofu output..."
-  TF_OUTPUT=$(tofu output -json service_ids)
-  _svc_id() { echo "$TF_OUTPUT" | jq -r ".\"$1\""; }
-else
-  echo "==> Fetching service IDs from Railway API..."
-  railway_get_service_ids
-  _svc_id() { _id "$1"; }
-fi
+# ── GraphQL helper ─────────────────────────────────────────────────────────
 
-SYNAPSE_ID=$(      _svc_id synapse)
-MAS_ID=$(          _svc_id mas)
-ELEMENT_ID=$(      _svc_id element)
-ELEMENT_CALL_ID=$( _svc_id element-call)
-NGINX_ID=$(        _svc_id nginx)
-TELEGRAM_ID=$(     _svc_id telegram)
-PROV_ID=$(         _svc_id provisioning-service)
-WIDGET_ID=$(       _svc_id postmoogle-widget)
+def gql(query):
+    data = json.dumps(query).encode()
+    req  = urllib.request.Request(
+        RAILWAY_API, data=data,
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        print(f"HTTP {e.code}: {e.read().decode()}", file=sys.stderr)
+        sys.exit(1)
+    if result.get("errors"):
+        print(f"GraphQL error: {result['errors']}", file=sys.stderr)
+        sys.exit(1)
+    return result
+
+# ── Load services.yaml ──────────────────────────────────────────────────────
+
+with open(SERVICES_YAML) as f:
+    config = yaml.safe_load(f)
+services = config["services"]
+print(f"==> {len(services)} services defined in services.yaml")
+
+# ── Get service IDs from Railway project ────────────────────────────────────
+
+result = gql({
+    "query": "query($id:String!){project(id:$id){services{edges{node{id name}}}}}",
+    "variables": {"id": PROJECT_ID}
+})
+railway_svcs = {
+    n["node"]["name"]: n["node"]["id"]
+    for n in result["data"]["project"]["services"]["edges"]
+}
+print(f"==> {len(railway_svcs)} services found in Railway project")
+
+# ── For dev mode: read service IDs from tofu output ─────────────────────────
+
+if DEPLOY_MODE == "dev":
+    try:
+        result_raw = subprocess.run(
+            ["tofu", "output", "-json", "service_ids"],
+            capture_output=True, text=True, check=True
+        )
+        tofu_ids = json.loads(result_raw.stdout)
+        # Merge tofu IDs with railway IDs (tofu is authoritative for dev)
+        railway_svcs.update(tofu_ids)
+        print(f"==> Updated service IDs from tofu output")
+    except Exception as e:
+        print(f"  Note: Could not read tofu output ({e}) — using Railway API IDs")
 
 # ── Update images for preview environments ───────────────────────────────────
-# dev: tofu already updated the image during apply
-# preview: update each service to this branch's image tag + trigger redeploy
 
-if [ "$DEPLOY_MODE" = "preview" ]; then
-  echo "==> Updating service images to: ${IMAGE_TAG}"
+if DEPLOY_MODE == "preview":
+    print(f"\n==> Updating service images → :{IMAGE_TAG}")
+    for name in services:
+        svc_id = railway_svcs.get(name)
+        if not svc_id:
+            print(f"  SKIP '{name}' — not in Railway project yet")
+            continue
 
-  EL_IMG="${ELEMENT_IMAGE:-${REGISTRY}/element:${IMAGE_TAG}}"
+        img = ELEMENT_IMAGE if (name == "element" and ELEMENT_IMAGE) \
+              else f"{REGISTRY}/{name}:{IMAGE_TAG}"
+        print(f"  {name} → {img}")
 
-  railway_update_service_image "$RAILWAY_ENV_ID" "$SYNAPSE_ID"      "${REGISTRY}/synapse:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$MAS_ID"          "${REGISTRY}/mas:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$ELEMENT_ID"      "$EL_IMG"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$ELEMENT_CALL_ID" "${REGISTRY}/element-call:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$NGINX_ID"        "${REGISTRY}/nginx:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$TELEGRAM_ID"     "${REGISTRY}/telegram:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$PROV_ID"         "${REGISTRY}/provisioning-service:${IMAGE_TAG}"
-  railway_update_service_image "$RAILWAY_ENV_ID" "$WIDGET_ID"       "${REGISTRY}/postmoogle-widget:${IMAGE_TAG}"
-fi
+        gql({"query": "mutation($e:String!,$s:String!,$i:ServiceInstanceUpdateInput!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:$i)}",
+             "variables": {"e": ENV_ID, "s": svc_id, "i": {"source": {"image": img}}}})
+        gql({"query": "mutation($e:String!,$s:String!){serviceInstanceRedeploy(environmentId:$e,serviceId:$s)}",
+             "variables": {"e": ENV_ID, "s": svc_id}})
 
-echo ""
-echo "==> Setting variables for all services..."
-echo ""
+# ── Set variables for every service ─────────────────────────────────────────
 
-# ── SYNAPSE ───────────────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$SYNAPSE_ID" \
-  "SERVER_NAME=${SERVER_NAME}" \
-  "MACAROON_KEY=${MACAROON_KEY}" \
-  "FORM_SECRET=${FORM_SECRET}" \
-  "REGISTRATION_SHARED_SECRET=${REGISTRATION_SHARED_SECRET}" \
-  "MAS_SHARED_SECRET=${MAS_SHARED_SECRET}" \
-  "POSTGRES_HOST=${POSTGRES_HOST}" \
-  "POSTGRES_PORT=${POSTGRES_PORT}" \
-  "POSTGRES_USER=${POSTGRES_USER}" \
-  "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-  "POSTGRES_DB=${POSTGRES_DB}" \
-  "TELEGRAM_AS_TOKEN=${TELEGRAM_AS_TOKEN}" \
-  "TELEGRAM_HS_TOKEN=${TELEGRAM_HS_TOKEN}" \
-  "SYNAPSE_CONFIG_PATH=/etc/synapse/homeserver.yaml"
+print("\n==> Setting variables for all services...")
+all_ok = True
 
-# ── MAS ───────────────────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$MAS_ID" \
-  "SERVER_NAME=${SERVER_NAME}" \
-  "MAS_ENCRYPTION_SECRET=${MAS_ENCRYPTION_SECRET}" \
-  "MAS_SHARED_SECRET=${MAS_SHARED_SECRET}" \
-  "MAS_CLIENT_ID=${MAS_CLIENT_ID}" \
-  "MAS_CLIENT_SECRET=${MAS_CLIENT_SECRET}" \
-  "MAS_RSA_PRIVATE_KEY=${MAS_RSA_PRIVATE_KEY}" \
-  "POSTGRES_HOST=${POSTGRES_HOST}" \
-  "POSTGRES_PORT=${POSTGRES_PORT}" \
-  "POSTGRES_USER=${POSTGRES_USER}" \
-  "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-  "POSTGRES_DB=${POSTGRES_DB}" \
-  "MAS_URL=https://\${{RAILWAY_PUBLIC_DOMAIN}}" \
-  "SYNAPSE_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
-  "ELEMENT_WEB_CLIENT_ID=${ELEMENT_WEB_CLIENT_ID}" \
-  "ELEMENT_WEB_URL=https://\${{element.RAILWAY_PUBLIC_DOMAIN}}"
+for name, cfg in services.items():
+    svc_id = railway_svcs.get(name)
+    if not svc_id:
+        print(f"  SKIP '{name}' — not in Railway project")
+        continue
 
-# ── ELEMENT WEB ───────────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$ELEMENT_ID" \
-  "SERVER_NAME=\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
-  "SYNAPSE_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
-  "MAS_URL=https://\${{mas.RAILWAY_PUBLIC_DOMAIN}}"
+    variables = {}
 
-# ── ELEMENT CALL ──────────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$ELEMENT_CALL_ID" \
-  "SERVER_NAME=\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
-  "SYNAPSE_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
+    # Static env_vars from services.yaml
+    for k, v in (cfg.get("env_vars") or {}).items():
+        variables[k] = str(v)
 
-# ── NGINX — no vars needed (uses static railway.internal in nginx.conf) ───────
-echo "==> nginx: no variables needed"
+    # Secrets — matched to GitLab CI environment variables
+    missing = []
+    for secret in (cfg.get("secrets") or []):
+        val = os.environ.get(secret, "")
+        if not val:
+            missing.append(secret)
+        variables[secret] = val
 
-# ── TELEGRAM ──────────────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$TELEGRAM_ID" \
-  "SERVER_NAME=${SERVER_NAME}" \
-  "TELEGRAM_AS_TOKEN=${TELEGRAM_AS_TOKEN}" \
-  "TELEGRAM_HS_TOKEN=${TELEGRAM_HS_TOKEN}" \
-  "TELEGRAM_API_ID=${TELEGRAM_API_ID}" \
-  "TELEGRAM_API_HASH=${TELEGRAM_API_HASH}" \
-  "POSTGRES_HOST=${POSTGRES_HOST}" \
-  "POSTGRES_PORT=${POSTGRES_PORT}" \
-  "POSTGRES_USER=${POSTGRES_USER}" \
-  "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-  "REGISTRATION_SHARED_SECRET=${REGISTRATION_SHARED_SECRET}"
+    if missing:
+        print(f"  WARNING [{name}]: not set in GitLab CI: {', '.join(missing)}")
+        all_ok = False
 
-# ── PROVISIONING SERVICE ──────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$PROV_ID" \
-  "HOMESERVER_URL=https://\${{synapse.RAILWAY_PUBLIC_DOMAIN}}" \
-  "ADMIN_ACCESS_TOKEN=${ADMIN_ACCESS_TOKEN}" \
-  "WIDGET_URL=https://\${{postmoogle-widget.RAILWAY_PUBLIC_DOMAIN}}" \
-  "WIDGET_ICON=${WIDGET_ICON:-}" \
-  "BOT_USER_ID=${BOT_USER_ID:-}" \
-  "PORT=3000"
+    if not variables:
+        print(f"  {name}: nothing to set")
+        continue
 
-# ── POSTMOOGLE WIDGET ─────────────────────────────────────────────────────────
-railway_upsert_vars "$RAILWAY_ENV_ID" "$WIDGET_ID" \
-  "PORT=3000"
+    print(f"  {name}: {len(variables)} variables")
 
-echo ""
-echo "✅  Done. Railway resolves \${{service.VAR}} references at container startup."
+    gql({
+        "query": "mutation($i:VariableCollectionUpsertInput!){variableCollectionUpsert(input:$i)}",
+        "variables": {"i": {
+            "projectId":     PROJECT_ID,
+            "environmentId": ENV_ID,
+            "serviceId":     svc_id,
+            "variables":     variables,
+            "replace":       False
+        }}
+    })
+
+print()
+if all_ok:
+    print("✅  All variables set successfully.")
+else:
+    print("⚠️   Done with warnings — some secrets were not set (see above).")
+print("    Railway resolves ${{service.VAR}} references at container startup.")
+PYTHON
