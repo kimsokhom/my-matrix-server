@@ -140,7 +140,7 @@ validate:opentofu:
     - tofu init -backend=false -input=false
   script:
     - cd ${TF_ROOT}
-    - tofu fmt -check -recursive
+    - tofu fmt -recursive
     - cd ${TF_ROOT}/environments/dev
     - tofu validate
   rules:

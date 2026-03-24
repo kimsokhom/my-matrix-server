@@ -2,30 +2,46 @@ terraform {
   required_version = ">= 1.5"
 }
 
-variable "railway_token"     { 
+variable "railway_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "project_id" {
   type = string
- sensitive = true 
- }
-variable "project_id"        { type = string }
-variable "environment_id"    { type = string }
-variable "environment"       { 
+}
+
+variable "environment_id" {
   type = string
- default = "preview"
-  }
-variable "registry"          { type = string }
-variable "image_tag"         { 
+}
+
+variable "environment" {
+  type    = string
+  default = "preview"
+}
+
+variable "registry" {
   type = string
- default = "latest"
-  }
-variable "registry_username" { type = string }
-variable "registry_password" { 
+}
+
+variable "image_tag" {
+  type    = string
+  default = "latest"
+}
+
+variable "registry_username" {
   type = string
- sensitive = true 
- }
-variable "element_image"     { 
-  type = string
- default = "" 
- }
+}
+
+variable "registry_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "element_image" {
+  type    = string
+  default = ""
+}
 
 module "railway" {
   source = "../../modules/railway"
@@ -41,7 +57,23 @@ module "railway" {
   element_image     = var.element_image
 }
 
-output "service_ids"    { value = module.railway.service_ids }
-output "service_names"  { value = module.railway.service_names }
-output "environment_id" { value = module.railway.environment_id }
-output "project_id"     { value = module.railway.project_id }
+output "service_ids" {
+  value = module.railway.service_ids
+}
+
+output "service_names" {
+  value = module.railway.service_names
+}
+
+output "environment_id" {
+  value = module.railway.environment_id
+}
+
+output "project_id" {
+  value = module.railway.project_id
+}
+
+output "service_domains" {
+  value     = module.railway.service_domains
+  sensitive = true
+}

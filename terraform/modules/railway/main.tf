@@ -8,32 +8,51 @@ terraform {
   }
 }
 
-variable "railway_token"     { 
-  type = string
- sensitive = true 
- }
-variable "project_id"        { type = string }
-variable "environment_id"    { type = string }
-variable "environment"       { type = string }
-variable "registry"          { type = string }
-variable "image_tag"         { type = string }
-variable "registry_username" { type = string }
-variable "registry_password" { 
-  type = string
+variable "railway_token" {
+  type      = string
+  sensitive = true
+}
 
- sensitive = true 
- }
-variable "element_image"     {
+variable "project_id" {
   type = string
- default = "" 
- }
+}
+
+variable "environment_id" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "registry" {
+  type = string
+}
+
+variable "image_tag" {
+  type = string
+}
+
+variable "registry_username" {
+  type = string
+}
+
+variable "registry_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "element_image" {
+  type    = string
+  default = ""
+}
 
 provider "railway" {
   token = var.railway_token
 }
 
 locals {
-  # Read services from services.yaml — single source of truth
+  # Read service definitions from services.yaml — single source of truth
   config = yamldecode(file("${path.module}/../../services.yaml"))
 
   services = {
@@ -50,6 +69,8 @@ locals {
   }
 }
 
+# ── Services ──────────────────────────────────────────────────────────────────
+
 resource "railway_service" "services" {
   for_each = local.services
 
@@ -61,10 +82,31 @@ resource "railway_service" "services" {
   source_image_registry_password = var.registry_password
 }
 
+# ── Outputs ───────────────────────────────────────────────────────────────────
+
 output "service_ids" {
-  value = { for name, svc in railway_service.services : name => svc.id }
+  description = "Map of service name → Railway service ID"
+  value       = { for name, svc in railway_service.services : name => svc.id }
 }
-output "service_names" { value = keys(local.services) }
-output "environment_id" { value = var.environment_id }
-output "project_id"     { value = var.project_id }
-output "provider"       { value = "railway" }
+
+output "service_names" {
+  description = "List of service names"
+  value       = keys(local.services)
+}
+
+output "service_domains" {
+  description = "Domains are managed manually in Railway dashboard"
+  value       = {}
+}
+
+output "environment_id" {
+  value = var.environment_id
+}
+
+output "project_id" {
+  value = var.project_id
+}
+
+output "provider" {
+  value = "railway"
+}
