@@ -26,6 +26,47 @@ matrix:
   secret: "${MAS_SHARED_SECRET}" # Must match the secret in Synapse's `matrix_authentication_service`
   endpoint: "http://synapse.railway.internal:8008" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
 
+# Upstream OIDC provider: Hydra (IAM SSO)
+# IMPORTANT:
+# - Provider `id` must be a valid ULID.
+# - Hydra client redirect URI must be:
+#   https://<mas-domain>/upstream/callback/<this-provider-id>
+upstream_oauth2:
+  providers:
+    - id: "${MAS_UPSTREAM_HYDRA_PROVIDER_ID}"
+      human_name: "IAM (Hydra)"
+      issuer: "${MAS_UPSTREAM_HYDRA_ISSUER}"
+      client_id: "${MAS_UPSTREAM_HYDRA_CLIENT_ID}"
+      client_secret: "${MAS_UPSTREAM_HYDRA_CLIENT_SECRET}"
+      token_endpoint_auth_method: client_secret_post
+      scope: "openid email profile"
+      discovery_mode: oidc
+      pkce_method: auto
+
+      claims_imports:
+        # Link external identity using stable subject from Hydra ID token
+        subject:
+          template: "{{ user.sub }}"
+
+        # Skip confirmation page and auto-provision directly
+        skip_confirmation: true
+
+        # Matrix localpart/username from Hydra claims
+        localpart:
+          action: require
+          template: "{{ user.username or user.preferred_username or user.sub }}"
+          on_conflict: fail
+
+        # Import email from Hydra ID token
+        email:
+          action: require
+          template: "{{ user.email }}"
+
+        # Optional display name
+        displayname:
+          action: force
+          template: "{{ user.name or user.preferred_username or user.username or user.email }}"
+
 # OIDC Client configuration (commented out - using native MAS delegation instead)
 clients:
   - client_id: "${MAS_CLIENT_ID}"
