@@ -65,30 +65,17 @@ report_stats: false
 
 app_service_config_files:
   - /etc/synapse/registration.yaml
-<<<<<<< HEAD
 
 # NATIVE MAS (DELEGATION):
 matrix_authentication_service:
   enabled: true
   endpoint: "${MAS_INTERNAL_URL}" 
-=======
-  - /data/postmoogle-registration.yaml
-
-# NATIVE MAS DELEGATION:
-matrix_authentication_service:
-  enabled: true
-  endpoint: "${MAS_INTERNAL_URL}" # Note: You can use an internal Docker network URL here (e.g., http://mas:8080) to save roundtrips
->>>>>>> 1faee144acfc46a69b930d060d3e56f996bec0d2
   secret: "${MAS_SHARED_SECRET}"
 
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
     - type: "livekit"
-<<<<<<< HEAD
       livekit_service_url: "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
-=======
-      livekit_service_url: "${LIVEKIT_JWT_SERVICE_URL}"
->>>>>>> 1faee144acfc46a69b930d060d3e56f996bec0d2
 
 experimental_features:
   # Required for Element Call / MatrixRTC
