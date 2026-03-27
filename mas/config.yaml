@@ -19,7 +19,10 @@ secrets:
   encryption: "${MAS_ENCRYPTION_SECRET}"
   keys:
     - kid: "mas-rsa-key-1"
-      key: "${MAS_RSA_PRIVATE_KEY}" # Use "key" here, NOT "key_file"
+      # Use the Pipe symbol (|) and NO quotes around the variable
+      # The formatted variable already contains the necessary indentation
+      key: |
+${MAS_RSA_KEY_FORMATTED}
 
 matrix:
   homeserver: "${SERVER_NAME}" # Must match `server_name` in Synapse config, NOT a URL
