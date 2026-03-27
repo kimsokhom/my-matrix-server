@@ -11,8 +11,8 @@ else
   export DNS_RESOLVER="${DNS_SERVER}"
 fi
 
-# Fallback to public gateway if internal hydra DNS is unavailable in this project network.
-export HYDRA_UPSTREAM="${HYDRA_UPSTREAM:-https://gateway-sengly-branch.up.railway.app}"
+# Use branch-specific/public Hydra URL when provided; otherwise fall back to internal service URL.
+export HYDRA_UPSTREAM="${HYDRA_UPSTREAM:-${HYDRA_URL:-http://hydra.railway.internal:4444}}"
 
 echo "Using DNS resolver: ${DNS_RESOLVER}"
 echo "Using Hydra upstream: ${HYDRA_UPSTREAM}"
