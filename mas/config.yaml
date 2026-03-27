@@ -39,9 +39,16 @@ upstream_oauth2:
       client_id: "${MAS_UPSTREAM_HYDRA_CLIENT_ID}"
       client_secret: "${MAS_UPSTREAM_HYDRA_CLIENT_SECRET}"
       token_endpoint_auth_method: client_secret_post
-      scope: "openid email profile"
-      discovery_mode: oidc
+      scope: "openid email profile offline_access"
+      discovery_mode: disabled
       pkce_method: auto
+
+      # Manual endpoints pointing to nginx proxy (not direct Hydra)
+      # This ensures cookies go through nginx where we can strip the domain
+      authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
+      token_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/token"
+      jwks_uri: "https://nginx-sengly-branch.up.railway.app/oauth2/jwks.json"
+      userinfo_endpoint: "https://nginx-sengly-branch.up.railway.app/userinfo"
 
       claims_imports:
         # Link external identity using stable subject from Hydra ID token
