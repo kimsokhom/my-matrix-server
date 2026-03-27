@@ -11,10 +11,14 @@ else
   export DNS_RESOLVER="${DNS_SERVER}"
 fi
 
+# Fallback to public gateway if internal hydra DNS is unavailable in this project network.
+export HYDRA_UPSTREAM="${HYDRA_UPSTREAM:-https://gateway-sengly-branch.up.railway.app}"
+
 echo "Using DNS resolver: ${DNS_RESOLVER}"
+echo "Using Hydra upstream: ${HYDRA_UPSTREAM}"
 
 # Render nginx config using env vars
-envsubst '${DNS_RESOLVER}' \
+envsubst '${DNS_RESOLVER} ${HYDRA_UPSTREAM}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 
