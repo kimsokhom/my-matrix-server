@@ -15,8 +15,8 @@ fi
 # 1. Explicit HYDRA_UPSTREAM env var (preferred)
 # 2. HYDRA_URL env var
 # 3. HYDRA_HOST if set (internal service name)
-# 4. Try http://hydra:4444 (service discovery in same Railway project)
-# 5. Fall back to internal hydra.railway.internal:4444
+# 4. Try Railway private DNS: http://hydra.railway.internal:4444
+# 5. Last resort: http://hydra:4444 (service discovery alias)
 
 if [ -z "$HYDRA_UPSTREAM" ]; then
   if [ -n "$HYDRA_URL" ]; then
@@ -24,8 +24,8 @@ if [ -z "$HYDRA_UPSTREAM" ]; then
   elif [ -n "$HYDRA_HOST" ]; then
     export HYDRA_UPSTREAM="http://${HYDRA_HOST}:4444"
   else
-    # Try internal service discovery first (for same-project Railway setup)
-    export HYDRA_UPSTREAM="http://hydra:4444"
+    # Prefer Railway private DNS name; fall back to simple service alias.
+    export HYDRA_UPSTREAM="http://hydra.railway.internal:4444"
   fi
 fi
 
