@@ -11,8 +11,23 @@ else
   export DNS_RESOLVER="${DNS_SERVER}"
 fi
 
-# Use branch-specific/public Hydra URL when provided; otherwise fall back to internal service URL.
-export HYDRA_UPSTREAM="${HYDRA_UPSTREAM:-${HYDRA_URL:-http://hydra.railway.internal:4444}}"
+# Determine Hydra upstream URL with fallback chain:
+# 1. Explicit HYDRA_UPSTREAM env var (preferred)
+# 2. HYDRA_URL env var
+# 3. HYDRA_HOST if set (internal service name)
+# 4. Try http://hydra:4444 (service discovery in same Railway project)
+# 5. Fall back to internal hydra.railway.internal:4444
+
+if [ -z "$HYDRA_UPSTREAM" ]; then
+  if [ -n "$HYDRA_URL" ]; then
+    export HYDRA_UPSTREAM="$HYDRA_URL"
+  elif [ -n "$HYDRA_HOST" ]; then
+    export HYDRA_UPSTREAM="http://${HYDRA_HOST}:4444"
+  else
+    # Try internal service discovery first (for same-project Railway setup)
+    export HYDRA_UPSTREAM="http://hydra:4444"
+  fi
+fi
 
 echo "Using DNS resolver: ${DNS_RESOLVER}"
 echo "Using Hydra upstream: ${HYDRA_UPSTREAM}"
@@ -21,5 +36,9 @@ echo "Using Hydra upstream: ${HYDRA_UPSTREAM}"
 envsubst '${DNS_RESOLVER} ${HYDRA_UPSTREAM}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
+
+# Log the rendered nginx config (for debugging)
+echo "Rendered nginx config:"
+head -30 /etc/nginx/conf.d/default.conf
 
 exec nginx -g 'daemon off;'
