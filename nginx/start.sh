@@ -14,17 +14,27 @@ fi
 # Determine Hydra upstream URL with fallback chain:
 # 1. Explicit HYDRA_UPSTREAM env var (preferred)
 # 2. HYDRA_URL env var
-# 3. HYDRA_HOST if set (internal service name)
-# 4. Try Railway private DNS: http://hydra.railway.internal:4444
-# 5. Last resort: http://hydra:4444 (service discovery alias)
+# 3. HYDRA_HOST if set (normalized for Railway)
+# 4. Railway private DNS default: http://hydra.railway.internal:4444
 
 if [ -z "$HYDRA_UPSTREAM" ]; then
   if [ -n "$HYDRA_URL" ]; then
     export HYDRA_UPSTREAM="$HYDRA_URL"
   elif [ -n "$HYDRA_HOST" ]; then
-    export HYDRA_UPSTREAM="http://${HYDRA_HOST}:4444"
+    case "$HYDRA_HOST" in
+      http://*|https://*)
+        export HYDRA_UPSTREAM="$HYDRA_HOST"
+        ;;
+      hydra)
+        # Force Railway private DNS instead of fragile service alias.
+        export HYDRA_UPSTREAM="http://hydra.railway.internal:4444"
+        ;;
+      *)
+        export HYDRA_UPSTREAM="http://${HYDRA_HOST}:4444"
+        ;;
+    esac
   else
-    # Prefer Railway private DNS name; fall back to simple service alias.
+    # Default to Railway private DNS name.
     export HYDRA_UPSTREAM="http://hydra.railway.internal:4444"
   fi
 fi
