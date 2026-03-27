@@ -57,6 +57,16 @@ passwords:
     - version: 2
       algorithm: argon2id
 
+# Section to control token lifetimes
+policy:
+  ttl:
+    # Standard OIDC access tokens (mat_...) used by browsers
+    access_token: 1h
+    # Compatibility tokens (mct_...) used by bots/services
+    compatibility_token: 8760h # 1 year
+    # How long a refresh token lasts
+    refresh_token: 720h # 30 days
+
 account:
   # This makes the Username and Password text boxes appear
   password_registration_enabled: true
