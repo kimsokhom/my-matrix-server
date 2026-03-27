@@ -21,7 +21,7 @@ database:
     user: "${POSTGRES_USER}"
     password: "${POSTGRES_PASSWORD}"
     host: "${POSTGRES_HOST}"
-    database: "synapse"
+    database: "${SYNAPSE_DB_NAME}"
     port: ${POSTGRES_PORT}
     cp_min: 5
     cp_max: 10
@@ -75,7 +75,7 @@ matrix_authentication_service:
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
     - type: "livekit"
-      livekit_service_url: "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
+      livekit_service_url: "${LIVEKIT_SERVICE_URL}"
 
 experimental_features:
   # Required for Element Call / MatrixRTC

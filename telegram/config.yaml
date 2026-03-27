@@ -1,14 +1,14 @@
 # --- HOMESERVER CONFIGURATION ---
 homeserver:
-  address: http://synapse.railway.internal:8008
+  address: ${SYNAPSE_INTERNAL_URL}
   domain: ${SERVER_NAME}
 
 # --- APPSERVICE CONFIGURATION ---
 appservice:
-  address: http://mautrix-telegram.railway.internal:29317
+  address: ${TELEGRAM_BRIDGE_URL}
   hostname: 0.0.0.0
   port: 29317
-  database: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/railway
+  database: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
 
   # Identity & Security
   id: telegram
@@ -24,7 +24,7 @@ telegram:
 bridge:
   permissions:
     "${SERVER_NAME}": "full"
-    "@admin_1:${SERVER_NAME}": "admin"
+    "${ADMIN_MXID}": "admin"
 
   # History & Backfill
   backfill:
@@ -38,7 +38,7 @@ bridge:
   double_puppet_allow_discovery: true
   # Map your public domain to the internal Railway address
   double_puppet_server_map:
-    ${SERVER_NAME}: http://synapse.railway.internal:8008
+    ${SERVER_NAME}: ${SYNAPSE_INTERNAL_URL}
 
   # Authentication
   allow_matrix_login: true

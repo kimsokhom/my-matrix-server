@@ -6,25 +6,18 @@ FROM ubuntu:24.04
 
 # 3. Install envsubst and CA certificates
 RUN apt-get update && \
-    apt-get install -y gettext-base ca-certificates && \
+    apt-get install -y --no-install-recommends gettext-base ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# 4. Copy the binary AND the required shared assets (policies, templates, etc.)
+# 4. Copy the binary AND the required shared assets
 COPY --from=mas-src /usr/local/bin/mas-cli /usr/local/bin/mas-cli
 COPY --from=mas-src /usr/local/share/mas-cli /usr/local/share/mas-cli
 
-# 5. Create the startup script
-RUN printf '#!/bin/sh\n\
-set -e\n\
-echo "Substituting environment variables..."\n\
-envsubst < /config.yaml.template > /tmp/config.yaml\n\
-echo "Starting MAS server..."\n\
-exec /usr/local/bin/mas-cli server --config /tmp/config.yaml\n' > /start.sh && \
-    chmod +x /start.sh
-
-# 6. Copy your config template
+# 5. Copy your config template and start script
 COPY config.yaml /config.yaml.template
+COPY start.sh /start.sh
+
+RUN chmod +x /start.sh
 
 EXPOSE 8008
-
-ENTRYPOINT ["/bin/sh", "/start.sh"]
+ENTRYPOINT ["/start.sh"]
