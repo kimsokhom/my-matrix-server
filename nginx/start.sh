@@ -11,6 +11,11 @@ else
   export DNS_RESOLVER="${DNS_SERVER}"
 fi
 
+# Add public DNS fallbacks so nginx can resolve both Railway private and public domains.
+# This helps when HYDRA_UPSTREAM points to a public *.up.railway.app hostname.
+PUBLIC_DNS_RESOLVERS="${PUBLIC_DNS_RESOLVERS:-1.1.1.1 8.8.8.8}"
+export DNS_RESOLVER="${DNS_RESOLVER} ${PUBLIC_DNS_RESOLVERS}"
+
 # Determine Hydra upstream URL with fallback chain:
 # 1. Explicit HYDRA_UPSTREAM env var (preferred)
 # 2. HYDRA_URL env var
