@@ -14,5 +14,9 @@ export SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
 export SYNAPSE_SERVER_NAME=$SERVER_NAME
 export SYNAPSE_REPORT_STATS=no
 
+# Give the Synapse user (UID 991) permission to access the Railway volume
+echo "Fixing volume permissions..."
+chown -R 991:991 /data
+
 echo "Starting Synapse..."
 exec /start.py run
