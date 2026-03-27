@@ -1,0 +1,400 @@
+# =============================================================================
+# Matrix Server Suite — GitLab CI/CD
+# =============================================================================
+#
+# TO ADD A NEW SERVICE — only 3 things:
+#   1. Create <service-name>/Dockerfile
+#   2. Add entry to terraform/services.yaml
+#   3. Add service name to the matrix list below (one line)
+#   Everything else — variables, Railway setup, deploy — is automatic.
+#
+# TO REMOVE A SERVICE:
+#   1. Remove from services.yaml
+#   2. Remove from matrix list below
+#   3. Push — OpenTofu removes it from Railway
+#
+# CHANGE DETECTION:
+#   Each service only rebuilds when its own files change.
+#   If only scripts/ or terraform/ changes → no rebuild, just re-deploy.
+#   This saves pipeline time — unchanged services finish in ~10s via cache.
+#
+# =============================================================================
+
+stages:
+  - build
+  - validate
+  - plan
+  - deploy
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when: runner_system_failure
+
+variables:
+  REGISTRY: "${CI_REGISTRY}/${CI_PROJECT_PATH}"
+  TF_ROOT: "${CI_PROJECT_DIR}/terraform"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: "1"
+
+# =============================================================================
+# BUILD — matrix, change-detected per service
+# =============================================================================
+
+.build_template:
+  stage: build
+  image: docker:25
+  services:
+    - docker:25-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - |
+      echo "=== Building ${SERVICE} ==="
+
+      # Skip if Dockerfile missing (added to yaml before code is ready)
+      if [ ! -f "${SERVICE}/Dockerfile" ]; then
+        echo "SKIP: ${SERVICE}/Dockerfile not found yet"
+        exit 0
+      fi
+
+      docker pull ${REGISTRY}/${SERVICE}:latest || true
+
+      docker build \
+        --cache-from ${REGISTRY}/${SERVICE}:latest \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        -t ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} \
+        -f ${SERVICE}/Dockerfile \
+        ${SERVICE}/
+
+      docker push ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA}
+
+      # Context tag (human reference — not used by OpenTofu)
+      if   [ "$CI_COMMIT_BRANCH" = "main" ];                  then CTX_TAG="latest"
+      elif [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then CTX_TAG="staging-${CI_MERGE_REQUEST_IID}"
+      elif [ "$CI_PIPELINE_SOURCE" = "push" ];                then CTX_TAG="branch-${CI_COMMIT_REF_SLUG}"
+      fi
+      if [ -n "${CTX_TAG:-}" ]; then
+        docker tag  ${REGISTRY}/${SERVICE}:${CI_COMMIT_SHA} ${REGISTRY}/${SERVICE}:${CTX_TAG}
+        docker push ${REGISTRY}/${SERVICE}:${CTX_TAG}
+        echo "==> SHA tag (deployed by OpenTofu): ${CI_COMMIT_SHA}"
+        echo "==> Context tag (human reference):  ${CTX_TAG}"
+      fi
+
+# Build matrix — add service name here when adding to services.yaml
+# Changes to a service folder trigger only that service's build
+build:services:
+  extends: .build_template
+  parallel:
+    matrix:
+      - SERVICE: synapse
+        CHANGES: "synapse/**"
+      - SERVICE: mas
+        CHANGES: "mas/**"
+      - SERVICE: element
+        CHANGES: "element/**"
+      - SERVICE: element-call
+        CHANGES: "element-call/**"
+      - SERVICE: nginx
+        CHANGES: "nginx/**"
+      - SERVICE: telegram
+        CHANGES: "telegram/**"
+      - SERVICE: provisioning-service
+        CHANGES: "provisioning-service/**"
+      - SERVICE: postmoogle-widget
+        CHANGES: "postmoogle-widget/**"
+      # ↑ Add new service here: { SERVICE: my-service, CHANGES: "my-service/**" }
+  rules:
+    # MR — only if this service's files changed
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - "${CHANGES}"
+        - "terraform/services.yaml"
+    # main push — only if this service's files changed
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - "${CHANGES}"
+        - "terraform/services.yaml"
+    # branch push — only if this service's files changed
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      changes:
+        - "${CHANGES}"
+        - "terraform/services.yaml"
+
+# =============================================================================
+# VALIDATE
+# =============================================================================
+
+validate:opentofu:
+  stage: validate
+  image:
+    name: ghcr.io/opentofu/opentofu:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache jq curl
+    - cd ${TF_ROOT}/environments/dev
+    - tofu init -backend=false -input=false
+  script:
+    - cd ${TF_ROOT}
+    - tofu fmt -recursive
+    - cd ${TF_ROOT}/environments/dev
+    - tofu validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+  allow_failure: false
+  needs: []
+
+# =============================================================================
+# BASE TEMPLATES
+# =============================================================================
+
+.tofu_base:
+  image:
+    name: ghcr.io/opentofu/opentofu:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache jq curl python3
+    - pip3 install --quiet --break-system-packages pyyaml 2>/dev/null || apk add --no-cache py3-yaml
+    - export TF_VAR_railway_token="${RAILWAY_TOKEN:-}"
+    - export TF_VAR_project_id="${RAILWAY_PROJECT_ID:-}"
+    - export TF_VAR_registry="${REGISTRY}"
+    - export TF_VAR_registry_username="${GITLAB_DEPLOY_TOKEN_USERNAME:-$CI_REGISTRY_USER}"
+    - export TF_VAR_registry_password="${GITLAB_DEPLOY_TOKEN_PASSWORD:-$CI_REGISTRY_PASSWORD}"
+    - |
+      if [ -n "${ELEMENT_IMAGE:-}" ]; then
+        export TF_VAR_element_image="${ELEMENT_IMAGE}"
+      else
+        export TF_VAR_element_image=""
+      fi
+
+# TF_HTTP_* — used by OpenTofu HTTP backend for ALL operations including locking
+.set_tf_http_vars: &set_tf_http_vars |
+  _BASE="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state"
+  export TF_HTTP_ADDRESS="${_BASE}/${TF_STATE_KEY}"
+  export TF_HTTP_LOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_UNLOCK_ADDRESS="${_BASE}/${TF_STATE_KEY}/lock"
+  export TF_HTTP_USERNAME="gitlab-ci-token"
+  export TF_HTTP_PASSWORD="${CI_JOB_TOKEN}"
+  export TF_HTTP_LOCK_METHOD="POST"
+  export TF_HTTP_UNLOCK_METHOD="DELETE"
+  export TF_HTTP_RETRY_WAIT_MIN="5"
+  echo "==> State key: ${TF_STATE_KEY}"
+
+.sanitise_branch: &sanitise_branch |
+  RAILWAY_ENV_NAME=$(echo "branch-${CI_COMMIT_REF_SLUG}" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g' \
+    | cut -c1-32)
+  [ -z "$RAILWAY_ENV_NAME" ] && RAILWAY_ENV_NAME="branch-${CI_COMMIT_SHORT_SHA}"
+  export RAILWAY_ENV_NAME
+
+.create_preview_env: &create_preview_env |
+  echo "==> Resolving preview environment: ${RAILWAY_ENV_NAME}"
+  RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+    -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -nc --arg id "$RAILWAY_PROJECT_ID" \
+      '{query:"query($id:String!){project(id:$id){environments{edges{node{id name}}}}}",variables:{id:$id}}')" \
+    | jq -r ".data.project.environments.edges[] \
+        | select(.node.name==\"${RAILWAY_ENV_NAME}\") | .node.id" \
+    | head -n1)
+  if [ -z "$RAILWAY_ENV_ID" ] || [ "$RAILWAY_ENV_ID" = "null" ]; then
+    if [ -z "${RAILWAY_ENVIRONMENT_ID_DEV:-}" ]; then
+      echo "ERROR: RAILWAY_ENVIRONMENT_ID_DEV must be set"
+      exit 1
+    fi
+    echo "==> Creating '${RAILWAY_ENV_NAME}' (duplicating dev)"
+    RAILWAY_ENV_ID=$(curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+      -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc \
+        --arg p "$RAILWAY_PROJECT_ID" \
+        --arg n "$RAILWAY_ENV_NAME" \
+        --arg src "$RAILWAY_ENVIRONMENT_ID_DEV" \
+        '{query:"mutation($i:EnvironmentCreateInput!){environmentCreate(input:$i){id name}}",variables:{i:{projectId:$p,name:$n,sourceEnvironmentId:$src}}}')" \
+      | jq -r '.data.environmentCreate.id')
+    sleep 5
+  fi
+  echo "==> '${RAILWAY_ENV_NAME}' = ${RAILWAY_ENV_ID}"
+  export RAILWAY_ENV_ID
+
+.delete_preview_env: &delete_preview_env |
+  if [ -n "${RAILWAY_ENV_ID:-}" ]; then
+    echo "==> Deleting environment: ${RAILWAY_ENV_NAME}"
+    curl -sf -X POST "https://backboard.railway.app/graphql/v2" \
+      -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg id "$RAILWAY_ENV_ID" \
+        '{query:"mutation($id:String!){environmentDelete(id:$id)}",variables:{id:$id}}')" \
+      > /dev/null
+    echo "==> Deleted (services remain in development)"
+  fi
+
+# Build job needs — all optional so plan/deploy run even when only some changed
+.build_needs: &build_needs
+  - validate:opentofu
+  - job: "build:services: [synapse]"
+    optional: true
+  - job: "build:services: [mas]"
+    optional: true
+  - job: "build:services: [element]"
+    optional: true
+  - job: "build:services: [element-call]"
+    optional: true
+  - job: "build:services: [nginx]"
+    optional: true
+  - job: "build:services: [telegram]"
+    optional: true
+  - job: "build:services: [provisioning-service]"
+    optional: true
+  - job: "build:services: [postmoogle-widget]"
+    optional: true
+  # ↑ Add new service here when adding to matrix above
+
+# =============================================================================
+# PLAN — development only
+# =============================================================================
+
+plan:dev:
+  extends: .tofu_base
+  stage: plan
+  variables:
+    TF_ENV: dev
+    TF_STATE_KEY: dev
+  script:
+    - |
+      export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+      export TF_VAR_environment="dev"
+    - *set_tf_http_vars
+    - |
+      cd ${TF_ROOT}/environments/${TF_ENV}
+      tofu init -input=false
+      tofu plan -out=tfplan
+  artifacts:
+    paths: [terraform/environments/dev/tfplan]
+    expire_in: 2 hours
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  needs: *build_needs
+
+# =============================================================================
+# DEPLOY — branch preview (no OpenTofu — duplicate dev, update image, set vars)
+# =============================================================================
+
+deploy:branch:
+  extends: .tofu_base
+  stage: deploy
+  script:
+    - *sanitise_branch
+    - *create_preview_env
+    - |
+      export IMAGE_TAG="${CI_COMMIT_SHA}"
+      export DEPLOY_MODE="preview"
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: preview/branch-${CI_COMMIT_REF_SLUG}
+    url: $RAILWAY_PREVIEW_URL
+    on_stop: cleanup:branch
+    auto_stop_in: 3 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+  needs: *build_needs
+
+cleanup:branch:
+  extends: .tofu_base
+  stage: deploy
+  script:
+    - *sanitise_branch
+    - *create_preview_env
+    - *delete_preview_env
+  environment:
+    name: preview/branch-${CI_COMMIT_REF_SLUG}
+    action: stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+      when: manual
+  allow_failure: true
+  needs: []
+
+# =============================================================================
+# DEPLOY — staging (MR)
+# =============================================================================
+
+deploy:staging:
+  extends: .tofu_base
+  stage: deploy
+  script:
+    - |
+      RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
+      export RAILWAY_ENV_NAME
+    - *create_preview_env
+    - |
+      export IMAGE_TAG="${CI_COMMIT_SHA}"
+      export DEPLOY_MODE="preview"
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: staging/mr-${CI_MERGE_REQUEST_IID}
+    url: $RAILWAY_STAGING_URL
+    on_stop: cleanup:staging
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  needs: *build_needs
+
+cleanup:staging:
+  extends: .tofu_base
+  stage: deploy
+  script:
+    - |
+      RAILWAY_ENV_NAME="staging-mr-${CI_MERGE_REQUEST_IID}"
+      export RAILWAY_ENV_NAME
+    - *create_preview_env
+    - *delete_preview_env
+  environment:
+    name: staging/mr-${CI_MERGE_REQUEST_IID}
+    action: stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+  allow_failure: true
+  needs: []
+
+# =============================================================================
+# DEPLOY — development (fully automatic on every main push)
+# =============================================================================
+
+deploy:dev:
+  extends: .tofu_base
+  stage: deploy
+  variables:
+    TF_ENV: dev
+    TF_STATE_KEY: dev
+  script:
+    - |
+      export RAILWAY_ENV_ID="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      export TF_VAR_environment_id="${RAILWAY_ENVIRONMENT_ID_DEV:-}"
+      export TF_VAR_environment="dev"
+      export TF_VAR_image_tag="${CI_COMMIT_SHA}"
+    - *set_tf_http_vars
+    - |
+      cd ${TF_ROOT}/environments/${TF_ENV}
+      tofu init -input=false
+      tofu apply -auto-approve ${CI_PROJECT_DIR}/terraform/environments/dev/tfplan
+      export DEPLOY_MODE="dev"
+      sh ${CI_PROJECT_DIR}/scripts/deploy.sh
+  environment:
+    name: development
+    url: $RAILWAY_DEV_URL
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  needs: [plan:dev]

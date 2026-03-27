@@ -15,3 +15,16 @@ mas_rsa.pem
 mas_rsa.pub
 *.pem
 *.key
+
+# OpenTofu/Terraform local artifacts
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep lock files in VCS for deterministic provider versions
+!.terraform.lock.hcl
