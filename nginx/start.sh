@@ -47,8 +47,14 @@ fi
 echo "Using DNS resolver: ${DNS_RESOLVER}"
 echo "Using Hydra upstream: ${HYDRA_UPSTREAM}"
 
+# Extract just the hostname for use as an nginx variable (enables per-request DNS resolution)
+HYDRA_HOST=$(echo "$HYDRA_UPSTREAM" | sed 's|^https\?://||' | cut -d: -f1 | cut -d/ -f1)
+export HYDRA_HOST
+
+echo "Using Hydra host (nginx variable): ${HYDRA_HOST}"
+
 # Render nginx config using env vars
-envsubst '${DNS_RESOLVER} ${HYDRA_UPSTREAM}' \
+envsubst '${DNS_RESOLVER} ${HYDRA_UPSTREAM} ${HYDRA_HOST}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 
