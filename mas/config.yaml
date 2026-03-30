@@ -43,10 +43,9 @@ upstream_oauth2:
       discovery_mode: disabled
       pkce_method: auto
 
-      # Route authorization through nginx so Hydra CSRF cookies are set on the nginx
-      # domain (via proxy) and survive the cross-domain redirect chain.
-      # token/jwks/userinfo are server-to-server; use Railway internal DNS.
-      authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
+      # Authorize directly against Hydra public endpoint to avoid nginx /oauth2 503s.
+      # token/jwks/userinfo remain server-to-server via Railway internal DNS.
+      authorization_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/auth"
       token_endpoint: "http://hydra.railway.internal:4444/oauth2/token"
       jwks_uri: "http://hydra.railway.internal:4444/.well-known/jwks.json"
       userinfo_endpoint: "http://hydra.railway.internal:4444/userinfo"
