@@ -44,6 +44,10 @@ clients:
       - "${ELEMENT_WEB_URL}/#/welcome"
       - "${ELEMENT_WEB_URL}/"
       - "${ELEMENT_WEB_URL}/?no_universal_links=true"
+      # --- ADD THESE FOR LOCAL DEV ---
+      - "http://localhost:8080/#/welcome"
+      - "http://localhost:8080/"
+      - "http://localhost:8080/?no_universal_links=true"
 
 templates:
   path: /usr/local/share/mas-cli/templates
