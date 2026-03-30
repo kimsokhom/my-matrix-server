@@ -12,9 +12,10 @@ else
 fi
 
 echo "Using DNS resolver: ${DNS_RESOLVER}"
+echo "Using Hydra host: ${HYDRA_HOST}"
 
 # Render nginx config using env vars
-envsubst '${DNS_RESOLVER}' \
+envsubst '${DNS_RESOLVER} ${HYDRA_HOST}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 
