@@ -69,7 +69,7 @@ app_service_config_files:
 # NATIVE MAS (DELEGATION):
 matrix_authentication_service:
   enabled: true
-  endpoint: "${MAS_INTERNAL_URL}" 
+  endpoint: "${MAS_INTERNAL_URL}"
   secret: "${MAS_SHARED_SECRET}"
 
 extra_well_known_client_content:
@@ -78,6 +78,9 @@ extra_well_known_client_content:
       livekit_service_url: "${LIVEKIT_SERVICE_URL}"
 
 experimental_features:
+  msc3861:
+    enabled: true
+    issuer: https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app/
   # Required for Element Call / MatrixRTC
   msc3266_enabled: true
   msc4143_enabled: true
