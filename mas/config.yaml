@@ -43,9 +43,9 @@ upstream_oauth2:
       discovery_mode: disabled
       pkce_method: auto
 
-      # Start browser auth on nginx domain so Hydra CSRF cookies stay on the same host
-      # as MAS callback (/upstream/callback/*). Keep token/jwks/userinfo direct to Hydra.
-      authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
+      # Use Hydra public endpoint directly for browser authorization.
+      # nginx /oauth2 proxy has shown intermittent 503s in production.
+      authorization_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/auth"
       token_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/token"
       jwks_uri: "https://hydra-sengly-branch.up.railway.app/.well-known/jwks.json"
       userinfo_endpoint: "https://hydra-sengly-branch.up.railway.app/userinfo"
