@@ -43,12 +43,12 @@ upstream_oauth2:
       discovery_mode: disabled
       pkce_method: auto
 
-      # Manual endpoints pointing to nginx proxy (not direct Hydra)
-      # This ensures cookies go through nginx where we can strip the domain
-      authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
-      token_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/token"
-      jwks_uri: "https://nginx-sengly-branch.up.railway.app/.well-known/jwks.json"
-      userinfo_endpoint: "https://nginx-sengly-branch.up.railway.app/userinfo"
+      # Use Hydra public endpoints directly.
+      # This avoids intermittent 503s on nginx /oauth2 proxy path.
+      authorization_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/auth"
+      token_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/token"
+      jwks_uri: "https://hydra-sengly-branch.up.railway.app/.well-known/jwks.json"
+      userinfo_endpoint: "https://hydra-sengly-branch.up.railway.app/userinfo"
 
       claims_imports:
         # Link external identity using stable subject from Hydra ID token
