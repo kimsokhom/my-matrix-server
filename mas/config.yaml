@@ -47,7 +47,7 @@ upstream_oauth2:
       # This ensures cookies go through nginx where we can strip the domain
       authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
       token_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/token"
-      jwks_uri: "https://nginx-sengly-branch.up.railway.app/oauth2/jwks.json"
+      jwks_uri: "https://nginx-sengly-branch.up.railway.app/.well-known/jwks.json"
       userinfo_endpoint: "https://nginx-sengly-branch.up.railway.app/userinfo"
 
       claims_imports:
