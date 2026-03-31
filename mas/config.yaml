@@ -45,7 +45,7 @@ upstream_oauth2:
 
       # Route authorization through nginx /oauth2 endpoint.
       # token/jwks/userinfo remain server-to-server via Railway internal DNS.
-      authorization_endpoint: "https://nginx-sengly-branch.up.railway.app/oauth2/auth"
+      authorization_endpoint: "https://gateway-sengly-branch.up.railway.app/oauth2/auth"
       token_endpoint: "https://hydra-sengly-branch.up.railway.app/oauth2/token"
       jwks_uri: "https://hydra-sengly-branch.up.railway.app/.well-known/jwks.json"
       userinfo_endpoint: "https://hydra-sengly-branch.up.railway.app/userinfo"
