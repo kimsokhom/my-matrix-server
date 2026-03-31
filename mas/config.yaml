@@ -62,7 +62,7 @@ upstream_oauth2:
         localpart:
           action: require
           template: "{{ user.username or user.preferred_username or user.sub }}"
-          on_conflict: add
+          on_conflict: fail
 
         # Import email from Hydra ID token
         email:
