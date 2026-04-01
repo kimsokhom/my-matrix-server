@@ -5,6 +5,7 @@
       "server_name": "nginx-sengly-branch.up.railway.app"
     }
   },
+  "disable_custom_urls": true,
   "brand": "Company Chat",
   "integrations_ui_url": "https://scalar.vector.im/",
   "integrations_rest_url": "https://scalar.vector.im/api",
