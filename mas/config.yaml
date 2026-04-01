@@ -9,7 +9,7 @@ http:
         - name: compat
         - name: graphql
         - name: assets
-        - name: matrix
+        - name: adminapi
       binds:
         - address: "0.0.0.0:8008"
 
