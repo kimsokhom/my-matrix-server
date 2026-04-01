@@ -78,6 +78,7 @@ extra_well_known_client_content:
       livekit_service_url: "https://synapse-kim-sokhom-matrix-email-bridge.up.railway.app"
 
 experimental_features:
+  msc3861_enabled: true
   # Required for Element Call / MatrixRTC
   msc3266_enabled: true
   msc4143_enabled: true
