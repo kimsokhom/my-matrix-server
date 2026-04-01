@@ -70,9 +70,7 @@ app_service_config_files:
 matrix_authentication_service:
   enabled: true
   endpoint: "${MAS_INTERNAL_URL}"
-  client_id: "${MAS_CLIENT_ID}"
-  client_auth_method: client_secret_basic
-  client_secret: "${MAS_CLIENT_SECRET}"
+  secret: "${MAS_SHARED_SECRET}"
 
 extra_well_known_client_content:
   "org.matrix.msc4143.rtc_foci":
