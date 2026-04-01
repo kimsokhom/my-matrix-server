@@ -6,6 +6,11 @@
     }
   },
   "disable_custom_urls": true,
+  "oidc_static_clients": {
+    "https://nginx-sengly-branch.up.railway.app/": {
+      "client_id": "element-web"
+    }
+  },
   "brand": "Company Chat",
   "integrations_ui_url": "https://scalar.vector.im/",
   "integrations_rest_url": "https://scalar.vector.im/api",
