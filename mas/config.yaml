@@ -99,16 +99,8 @@ branding:
   service_name: "My Matrix Server"
 
 passwords:
-  enabled: true
-  schemes:
-    - version: 1
-      algorithm: bcrypt
-    - version: 2
-      algorithm: argon2id
+  enabled: false
 
 account:
-  # This makes the Username and Password text boxes appear
-  password_registration_enabled: true
-
-  # This allows users to register without needing to click an email verification link
+  password_registration_enabled: false
   password_registration_email_required: false
