@@ -62,7 +62,7 @@ upstream_oauth2:
         # Matrix localpart/username from Hydra claims
         localpart:
           action: require
-          template: "{{ user.username or user.preferred_username or user.sub }}"
+          template: "{{ (user.username or user.preferred_username or user.sub) | lower }}"
           on_conflict: fail
 
         # Import email from Hydra ID token
