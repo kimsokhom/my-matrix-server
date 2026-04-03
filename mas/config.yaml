@@ -91,7 +91,7 @@ clients:
       - "${ELEMENT_WEB_URL}/"
       - "${ELEMENT_WEB_URL}/?no_universal_links=true"
     post_logout_redirect_uris:
-      - "${IAM_URL}/auth/login"
+      - "${ELEMENT_WEB_URL}/element-logout"
 
 templates:
   path: /usr/local/share/mas-cli/templates
