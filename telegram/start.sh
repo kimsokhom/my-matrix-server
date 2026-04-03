@@ -11,4 +11,4 @@ envsubst '$TELEGRAM_AS_TOKEN $TELEGRAM_HS_TOKEN $SERVER_NAME $TELEGRAM_BRIDGE_UR
     < /etc/mautrix-telegram/registration.yaml.template > /etc/mautrix-telegram/registration.yaml
 
 echo "Starting Mautrix-Telegram bridge..."
-exec python3 -m mautrix_telegram -c /etc/mautrix-telegram/config.yaml
+exec /usr/bin/mautrix-telegram -c /etc/mautrix-telegram/config.yaml
