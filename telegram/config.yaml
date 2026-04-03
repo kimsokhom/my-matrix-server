@@ -23,7 +23,7 @@ telegram:
 # --- BRIDGE SETTINGS ---
 bridge:
   permissions:
-    "${SERVER_NAME}": "full"
+    "${SERVER_NAME}": "user"
     "${ADMIN_MXID}": "admin"
 
   # History & Backfill
