@@ -57,6 +57,12 @@ bridge:
   force_unverified_device: true
   device_name: "Telegram Bridge"
 
+  # Disable E2EE - bridge does not need it
+  encryption:
+    allow: false
+    default: false
+    require: false
+
 # --- LOGGING CONFIGURATION ---
 logging:
   version: 1
