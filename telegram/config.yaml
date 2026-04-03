@@ -59,7 +59,7 @@ bridge:
 
   # Disable E2EE - bridge does not need it
   encryption:
-    allow: false
+    allow: true
     default: false
     require: false
 
