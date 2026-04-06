@@ -11,10 +11,12 @@ fi
 echo "Rendering hookshot config..."
 envsubst '${SERVER_NAME} ${SYNAPSE_INTERNAL_URL} ${LOG_LEVEL}' \
   < /etc/hookshot/config.yaml.template > /data/config.yaml
+cat /data/config.yaml
 
 echo "Rendering hookshot registration..."
 envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
+cat /data/registration.yaml
 
 echo "Starting Hookshot..."
 exec node /usr/bin/matrix-hookshot/Bridge.js \
