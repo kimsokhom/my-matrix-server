@@ -1,5 +1,7 @@
 FROM vectorim/element-web:latest
 
+USER root
+
 COPY config.json /app/config.json.template
 RUN touch /app/config.json && chmod 666 /app/config.json
 
