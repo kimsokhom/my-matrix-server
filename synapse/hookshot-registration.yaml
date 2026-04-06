@@ -1,0 +1,17 @@
+id: hookshot
+url: "http://hookshot.railway.internal:9993"
+as_token: "${HOOKSHOT_AS_TOKEN}"
+hs_token: "${HOOKSHOT_HS_TOKEN}"
+rate_limited: false
+sender_localpart: hookshot
+
+namespaces:
+  users:
+    - exclusive: false
+      regex: "@hookshot_.*:${SERVER_NAME}"
+  aliases:
+    - exclusive: false
+      regex: "#hookshot_.*:${SERVER_NAME}"
+  rooms: []
+
+protocols: []

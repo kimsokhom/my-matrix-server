@@ -1,0 +1,26 @@
+# Appservice registration file for Synapse.
+# This file is rendered by start.sh via envsubst — do NOT edit the rendered copy.
+#
+# Required env vars:
+#   HOOKSHOT_AS_TOKEN  — random secret hookshot uses to authenticate TO Synapse
+#   HOOKSHOT_HS_TOKEN  — random secret Synapse uses to authenticate TO hookshot
+#
+# Generate both with:  openssl rand -hex 32
+
+id: hookshot
+url: "http://hookshot:9993"
+as_token: "${HOOKSHOT_AS_TOKEN}"
+hs_token: "${HOOKSHOT_HS_TOKEN}"
+rate_limited: false
+sender_localpart: hookshot
+
+namespaces:
+  users:
+    - exclusive: false
+      regex: "@hookshot_.*:${SERVER_NAME}"
+  aliases:
+    - exclusive: false
+      regex: "#hookshot_.*:${SERVER_NAME}"
+  rooms: []
+
+protocols: []

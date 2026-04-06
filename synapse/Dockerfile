@@ -5,7 +5,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
-COPY registration.yaml /etc/synapse/registration.yaml.template
+COPY telegram-registration.yaml /etc/synapse/telegram-registration.yaml.template
+COPY hookshot-registration.yaml /etc/synapse/hookshot-registration.yaml.template
 COPY start.sh /start.sh
 
 RUN chmod +x /start.sh

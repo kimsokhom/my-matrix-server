@@ -64,7 +64,8 @@ enable_metrics: false
 report_stats: false
 
 app_service_config_files:
-  - /etc/synapse/registration.yaml
+  - /etc/synapse/telegram-registration.yaml
+  - /etc/synapse/hookshot-registration.yaml
 
 # NATIVE MAS (DELEGATION):
 matrix_authentication_service:

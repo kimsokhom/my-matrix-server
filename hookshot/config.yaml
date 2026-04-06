@@ -1,0 +1,69 @@
+bridge:
+  domain: "${SERVER_NAME}"
+  url: "${SYNAPSE_INTERNAL_URL}"
+  mediaUrl: "https://${SERVER_NAME}"
+  port: 9993
+  bindAddress: "0.0.0.0"
+
+logging:
+  level: "${LOG_LEVEL}"
+  colorize: true
+  json: false
+  timestampFormat: HH:mm:ss:SSS
+
+# Path to a PEM key used to encrypt stored tokens.
+# Generate with: openssl genpkey -out passkey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+passFile: "/data/passkey.pem"
+
+listeners:
+  # Webhook listener — external services POST here
+  - port: 9000
+    bindAddress: "0.0.0.0"
+    resources:
+      - webhooks
+
+# Generic Webhooks
+# Each Matrix room can generate a unique webhook URL via the !hookshot webhook command.
+# External services call: https://${SERVER_NAME}/hookshot/webhook
+generic:
+  enabled: true
+  urlPrefix: "https://${SERVER_NAME}/hookshot/"
+  allowJsTransformationFunctions: false
+  waitForComplete: false
+  # Set to true if you need GET-based webhooks (e.g. some monitoring tools)
+  enableHttpGet: false
+
+bot:
+  displayname: "Hookshot"
+  avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d"
+
+# Uncomment to enable GitHub integration
+# github:
+#   auth:
+#     id: "${GITHUB_APP_ID}"
+#     privateKeyFile: /data/github-private-key.pem
+#   webhook:
+#     secret: "${GITHUB_WEBHOOK_SECRET}"
+#   oauth:
+#     client_id: "${GITHUB_CLIENT_ID}"
+#     client_secret: "${GITHUB_CLIENT_SECRET}"
+#     redirect_uri: "https://${SERVER_NAME}/hookshot/oauth"
+#   defaultOptions:
+#     showIssueRoomLink: false
+#     hotlinkIssues:
+#       prefix: "#"
+
+# Uncomment to enable GitLab integration
+# gitlab:
+#   instances:
+#     gitlab.com:
+#       url: "https://gitlab.com"
+#   webhook:
+#     secret: "${GITLAB_WEBHOOK_SECRET}"
+#     publicUrl: "https://${SERVER_NAME}/hookshot/webhook"
+
+# Uncomment to enable RSS/Atom feed polling
+# feeds:
+#   enabled: true
+#   pollIntervalSeconds: 600
+#   pollTimeoutSeconds: 30
