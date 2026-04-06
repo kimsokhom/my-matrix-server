@@ -1,14 +1,14 @@
 {
   "default_server_config": {
     "m.homeserver": {
-      "base_url": "https://nginx-sengly-branch.up.railway.app",
-      "server_name": "nginx-sengly-branch.up.railway.app"
+      "base_url": "https://${SERVER_NAME}",
+      "server_name": "${SERVER_NAME}"
     }
   },
   "disable_custom_urls": true,
   "oidc_static_clients": {
-    "https://nginx-sengly-branch.up.railway.app/": {
-      "client_id": "00000000000000000000SEC0ND"
+    "${MAS_URL}/": {
+      "client_id": "${ELEMENT_WEB_CLIENT_ID}"
     }
   },
   "brand": "Company Chat",
@@ -20,6 +20,6 @@
   ],
   "default_theme": "light",
   "room_directory": {
-    "servers": ["nginx-sengly-branch.up.railway.app"]
+    "servers": ["${SERVER_NAME}"]
   }
 }
