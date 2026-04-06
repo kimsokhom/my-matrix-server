@@ -17,6 +17,9 @@ envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
 echo "Starting Hookshot..."
+echo "Checking Bridge.js path..."
+ls /usr/bin/matrix-hookshot/ || echo "Directory not found"
+ls /usr/local/lib/ | grep hookshot || echo "Not in /usr/local/lib"
 exec node /usr/bin/matrix-hookshot/Bridge.js \
   --config /data/config.yaml \
   --registration /data/registration.yaml
