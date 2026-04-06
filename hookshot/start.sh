@@ -16,6 +16,9 @@ echo "Rendering hookshot registration..."
 envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
+echo "Checking Bridge.js usage..."
+node /usr/bin/matrix-hookshot/Bridge.js --help 2>&1 || true
+
 echo "Starting Hookshot..."
 node /usr/bin/matrix-hookshot/Bridge.js \
   --config /data/config.yaml \
