@@ -16,11 +16,8 @@ echo "Rendering hookshot registration..."
 envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
-echo "Checking package.json scripts..."
-cat /usr/bin/matrix-hookshot/package.json
-
 echo "Starting Hookshot..."
-node /usr/bin/matrix-hookshot/Bridge.js \
+exec node --require source-map-support/register \
+  /usr/bin/matrix-hookshot/lib/App/BridgeApp.js \
   --config /data/config.yaml \
-  --registration /data/registration.yaml 2>&1
-echo "Hookshot exited with code: $?"
+  --registration /data/registration.yaml
