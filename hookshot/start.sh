@@ -17,7 +17,7 @@ envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
 echo "Starting Hookshot..."
-exec node --trace-warnings --unhandled-rejections=throw \
-  /usr/bin/matrix-hookshot/Bridge.js \
+node /usr/bin/matrix-hookshot/Bridge.js \
   --config /data/config.yaml \
-  --registration /data/registration.yaml
+  --registration /data/registration.yaml 2>&1
+echo "Hookshot exited with code: $?"
