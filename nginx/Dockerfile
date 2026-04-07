@@ -1,15 +1,11 @@
-FROM nginx:latest
+FROM nginx:alpine
 
-# Install envsubst (included in gettext-base)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends gettext-base && \
-    rm -rf /var/lib/apt/lists/*
+# Install envsubst (gettext) and remove default config
+RUN apk add --no-cache gettext && \
+    rm /etc/nginx/conf.d/default.conf
 
-# Remove the default Nginx config
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy config as a template, and copy start script
-COPY default.conf /etc/nginx/conf.d/default.conf.template
+# Copy config template and start script
+COPY default.conf /etc/nginx/templates/default.conf.template
 COPY start.sh /start.sh
 
 RUN chmod +x /start.sh

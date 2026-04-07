@@ -5,6 +5,12 @@
       "server_name": "${SERVER_NAME}"
     }
   },
+  "disable_custom_urls": true,
+  "oidc_static_clients": {
+    "https://${SERVER_NAME}/": {
+      "client_id": "${ELEMENT_WEB_CLIENT_ID}"
+    }
+  },
   "brand": "Company Chat",
   "integrations_ui_url": "https://scalar.vector.im/",
   "integrations_rest_url": "https://scalar.vector.im/api",

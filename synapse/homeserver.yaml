@@ -79,6 +79,7 @@ extra_well_known_client_content:
       livekit_service_url: "${LIVEKIT_SERVICE_URL}"
 
 experimental_features:
+  msc3861_enabled: true
   # Required for Element Call / MatrixRTC
   msc3266_enabled: true
   msc4143_enabled: true

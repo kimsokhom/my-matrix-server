@@ -9,6 +9,7 @@ http:
         - name: compat
         - name: graphql
         - name: assets
+        - name: adminapi
       binds:
         - address: "0.0.0.0:8080"
 
@@ -29,6 +30,54 @@ matrix:
   secret: "${MAS_SHARED_SECRET}" # Must match the secret in Synapse's `matrix_authentication_service`
   endpoint: "${SYNAPSE_INTERNAL_URL}" # Internal URL where MAS can reach Synapse (e.g. http://synapse:8008)
 
+# Upstream OIDC provider: Hydra (IAM SSO)
+# IMPORTANT:
+# - Provider `id` must be a valid ULID.
+# - Hydra client redirect URI must be:
+#   https://<mas-domain>/upstream/callback/<this-provider-id>
+upstream_oauth2:
+  providers:
+    - id: "${MAS_UPSTREAM_HYDRA_PROVIDER_ID}"
+      human_name: "IAM (Hydra)"
+      issuer: "${MAS_UPSTREAM_HYDRA_ISSUER}"
+      client_id: "${MAS_UPSTREAM_HYDRA_CLIENT_ID}"
+      client_secret: "${MAS_UPSTREAM_HYDRA_CLIENT_SECRET}"
+      token_endpoint_auth_method: client_secret_post
+      scope: "openid email profile offline_access"
+      discovery_mode: disabled
+      pkce_method: auto
+
+      # Route authorization through nginx /oauth2 endpoint.
+      # token/jwks/userinfo remain server-to-server via Railway internal DNS.
+      authorization_endpoint: "${GATEWAY_URL}/oauth2/auth"
+      token_endpoint: "https://${HYDRA_HOST}/oauth2/token"
+      jwks_uri: "https://${HYDRA_HOST}/.well-known/jwks.json"
+      userinfo_endpoint: "https://${HYDRA_HOST}/userinfo"
+
+      claims_imports:
+        # Link external identity using stable subject from Hydra ID token
+        subject:
+          template: "{{ user.sub }}"
+
+        # Skip confirmation page and auto-provision directly
+        skip_confirmation: true
+
+        # Matrix localpart/username from Hydra claims
+        localpart:
+          action: require
+          template: "{{ (user.username or user.preferred_username or user.sub) | lower }}"
+          on_conflict: fail
+
+        # Import email from Hydra ID token
+        email:
+          action: require
+          template: "{{ user.email }}"
+
+        # Optional display name
+        displayname:
+          action: force
+          template: "{{ user.name or user.preferred_username or user.username or user.email }}"
+
 # OIDC Client configuration (commented out - using native MAS delegation instead)
 clients:
   - client_id: "${MAS_CLIENT_ID}"
@@ -39,6 +88,7 @@ clients:
       - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
 
   - client_id: "${ELEMENT_WEB_CLIENT_ID}"
+    client_name: "Element Chat"
     client_auth_method: "none"
     redirect_uris:
       - "${ELEMENT_WEB_URL}/#/welcome"
@@ -48,6 +98,12 @@ clients:
       - "http://localhost:8080/#/welcome"
       - "http://localhost:8080/"
       - "http://localhost:8080/?no_universal_links=true"
+    post_logout_redirect_uris:
+      - "${ELEMENT_WEB_URL}/element-logout"
+
+experimental:
+  client_registration:
+    deny_all: true
 
 templates:
   path: /usr/local/share/mas-cli/templates
@@ -57,12 +113,7 @@ branding:
   service_name: "My Matrix Server"
 
 passwords:
-  enabled: true
-  schemes:
-    - version: 1
-      algorithm: bcrypt
-    - version: 2
-      algorithm: argon2id
+  enabled: false
 
 # Section to control token lifetimes
 policy:
@@ -75,7 +126,6 @@ policy:
     refresh_token: 720h # 30 days
 
 account:
-  # This makes the Username and Password text boxes appear
-  password_registration_enabled: true
-  # This allows users to register without needing to click an email verification link
+  # passwords.enabled is false above, so registration is disabled regardless
+  password_registration_enabled: false
   password_registration_email_required: false

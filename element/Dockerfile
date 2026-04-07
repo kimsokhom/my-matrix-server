@@ -4,10 +4,8 @@ FROM vectorim/element-web:latest
 USER root
 RUN apk add --no-cache gettext
 
-# Copy config as template and copy start script
 COPY config.json /app/config.json.template
 COPY start.sh /start.sh
-
 RUN chmod +x /start.sh
 
 EXPOSE 8080
