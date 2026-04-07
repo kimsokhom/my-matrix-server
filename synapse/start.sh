@@ -9,7 +9,7 @@ envsubst '$SERVER_NAME $POSTGRES_USER $POSTGRES_PASSWORD $POSTGRES_HOST $POSTGRE
 envsubst '$TELEGRAM_AS_TOKEN $TELEGRAM_HS_TOKEN $SERVER_NAME $TELEGRAM_BRIDGE_URL' \
     < /etc/synapse/telegram-registration.yaml.template > /etc/synapse/telegram-registration.yaml
 
-envsubst '$HOOKSHOT_AS_TOKEN $HOOKSHOT_HS_TOKEN $SERVER_NAME' \
+envsubst '$HOOKSHOT_AS_TOKEN $HOOKSHOT_HS_TOKEN $SERVER_NAME $HOOKSHOT_INTERNAL_URL' \
     < /etc/synapse/hookshot-registration.yaml.template > /etc/synapse/hookshot-registration.yaml
 
 export SYNAPSE_CONFIG_PATH=/data/homeserver.yaml

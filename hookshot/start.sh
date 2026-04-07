@@ -13,7 +13,7 @@ envsubst '${SERVER_NAME} ${SYNAPSE_INTERNAL_URL} ${LOG_LEVEL}' \
   < /etc/hookshot/config.yaml.template > /data/config.yaml
 
 echo "Rendering hookshot registration..."
-envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
+envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN} ${HOOKSHOT_INTERNAL_URL}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
 echo "Starting Hookshot..."
