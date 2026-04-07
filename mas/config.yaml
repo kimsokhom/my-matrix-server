@@ -94,6 +94,10 @@ clients:
     post_logout_redirect_uris:
       - "${ELEMENT_WEB_URL}/element-logout"
 
+experimental:
+  client_registration:
+    deny_all: true
+
 templates:
   path: /usr/local/share/mas-cli/templates
   assets_manifest: /usr/local/share/mas-cli/manifest.json
