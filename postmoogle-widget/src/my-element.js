@@ -1,6 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import * as MatrixWidget from 'matrix-widget-api';
 
+const BACKEND_URL = import.meta.env.VITE_POSTMOOGLE_BACKEND_URL;
+const WIDGET_SECRET = import.meta.env.VITE_WIDGET_SECRET;
+
 export class PostmoogleWidget extends LitElement {
   static properties = {
     apiStatus: { type: String },
@@ -32,7 +35,6 @@ export class PostmoogleWidget extends LitElement {
   }
 
   async firstUpdated() {
-    const BACKEND_URL = 'https://postmoogle-bridge-kim-sokhom-matrix-email-bridge.up.railway.app';
     try {
       const response = await fetch(`${BACKEND_URL}/api/v1/health`);
       this.apiStatus = response.ok ? "online" : "error";
@@ -107,13 +109,12 @@ export class PostmoogleWidget extends LitElement {
 
   async _sendEmail() {
     this.isLoading = true;
-    const BACKEND_URL = 'https://postmoogle-bridge-kim-sokhom-matrix-email-bridge.up.railway.app';
 
     try {
       const res = await fetch(`${BACKEND_URL}/api/v1/send`, {
         method: 'POST',
         headers: {
-          'X-Widget-Secret': 'ChooseAComplexPassword123',
+          'X-Widget-Secret': WIDGET_SECRET,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ to: this.to, subject: this.subject, body: this.body })
