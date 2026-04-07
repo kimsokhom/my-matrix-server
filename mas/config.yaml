@@ -85,6 +85,7 @@ clients:
       - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
 
   - client_id: "${ELEMENT_WEB_CLIENT_ID}"
+    client_name: "Element Chat"
     client_auth_method: "none"
     redirect_uris:
       - "${ELEMENT_WEB_URL}/#/welcome"
