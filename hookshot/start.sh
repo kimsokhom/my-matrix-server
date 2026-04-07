@@ -17,7 +17,6 @@ envsubst '${SERVER_NAME} ${HOOKSHOT_AS_TOKEN} ${HOOKSHOT_HS_TOKEN}' \
   < /etc/hookshot/registration.yaml.template > /data/registration.yaml
 
 echo "Starting Hookshot..."
-exec node --require source-map-support/register \
-  /usr/bin/matrix-hookshot/App/BridgeApp.js \
+exec node /usr/bin/matrix-hookshot/App/BridgeApp.js \
   /data/config.yaml \
   /data/registration.yaml

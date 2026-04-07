@@ -1,5 +1,5 @@
 id: hookshot
-url: "http://hookshot.railway.internal:9993"
+url: "${HOOKSHOT_INTERNAL_URL}"
 as_token: "${HOOKSHOT_AS_TOKEN}"
 hs_token: "${HOOKSHOT_HS_TOKEN}"
 rate_limited: false
