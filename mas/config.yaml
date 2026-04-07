@@ -84,7 +84,7 @@ clients:
       - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
       - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
 
-  - client_id: "${ELEMENT_WEB_CLIENT_ID}"
+  - client_id: "00000000-0000-0000-0000-000032e602ad"
     client_name: "Element Chat"
     client_auth_method: "none"
     redirect_uris:
