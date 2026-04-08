@@ -16,8 +16,10 @@ echo "Using Hydra host: ${HYDRA_HOST}"
 
 echo "Substituting Nginx environment variables..."
 
-# $NGINX_ENVSUBST_FILTER controls which vars are substituted (set in Railway dashboard)
-envsubst "$NGINX_ENVSUBST_FILTER" \
+# Explicitly list only the vars we want substituted.
+# DO NOT use bare envsubst or "$NGINX_ENVSUBST_FILTER" - nginx uses $host, $remote_addr,
+# etc. which would be wiped to empty if all vars were substituted.
+envsubst '$DNS_RESOLVER $HYDRA_HOST $GATEWAY_URL' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 
