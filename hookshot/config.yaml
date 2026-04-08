@@ -54,13 +54,13 @@ bot:
 #       prefix: "#"
 
 # Uncomment to enable GitLab integration
-# gitlab:
-#   instances:
-#     gitlab.com:
-#       url: "https://gitlab.com"
-#   webhook:
-#     secret: "${GITLAB_WEBHOOK_SECRET}"
-#     publicUrl: "https://${SERVER_NAME}/hookshot/webhook"
+gitlab:
+  instances:
+    gitlab.com:
+      url: "https://gitlab.com"
+  webhook:
+    secret: "${GITLAB_WEBHOOK_SECRET}"
+    publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/gitlab/webhook"
 
 # Uncomment to enable RSS/Atom feed polling
 # feeds:

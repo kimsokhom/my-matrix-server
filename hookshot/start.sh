@@ -9,7 +9,7 @@ fi
 
 # Substitute env vars into config and registration templates
 echo "Rendering hookshot config..."
-envsubst '${SERVER_NAME} ${SYNAPSE_INTERNAL_URL} ${LOG_LEVEL}' \
+envsubst '${SERVER_NAME} ${SYNAPSE_INTERNAL_URL} ${LOG_LEVEL} ${GITLAB_WEBHOOK_SECRET} ${HOOKSHOT_PUBLIC_URL}' \
   < /etc/hookshot/config.yaml.template > /data/config.yaml
 
 echo "Rendering hookshot registration..."
