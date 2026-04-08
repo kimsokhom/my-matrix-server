@@ -7,8 +7,8 @@
   },
   "disable_custom_urls": true,
   "oidc_static_clients": {
-    "https://nginx-sengly-branch.up.railway.app/": {
-      "client_id": "00000000000000000000SEC0ND"
+    "https://${SERVER_NAME}/": {
+      "client_id": "${ELEMENT_WEB_CLIENT_ID}"
     }
   },
   "brand": "Company Chat",
