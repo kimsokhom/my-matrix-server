@@ -1,5 +1,4 @@
-const express = require("express");
-const { MatrixClient } = require("matrix-bot-sdk");
+import express from "express";
 
 const app = express();
 app.use(express.json());
@@ -12,33 +11,50 @@ const widgetIcon = process.env.WIDGET_ICON;
 const botUserId = process.env.BOT_USER_ID;
 const PORT = process.env.PROVISIONING_SERVICE_PORT || 3000;
 
-// Validate required env vars at startup
 if (!homeserverUrl || !accessToken) {
     console.error("Missing required environment variables: HOMESERVER_URL or ADMIN_ACCESS_TOKEN");
     process.exit(1);
 }
 
-const client = new MatrixClient(homeserverUrl, accessToken);
+// ================= MATRIX CLIENT =================
+async function matrixRequest(method, path, body) {
+    const url = `${homeserverUrl}/_matrix/client/v3${path}`;
+    const res = await fetch(url, {
+        method,
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        const err = new Error(data.error || `Matrix API error: ${res.status}`);
+        err.status = res.status;
+        err.body = data;
+        throw err;
+    }
+    return data;
+}
 
 // ================= ROUTES =================
 app.post("/api/provision", async (req, res) => {
     const { userId, serviceType } = req.body;
 
-    // Input validation
     if (!userId || serviceType !== "email") {
         return res.status(400).json({
-            error: "Invalid request: userId required and serviceType must be 'email'"
+            error: "Invalid request: userId required and serviceType must be 'email'",
         });
     }
 
     try {
-        const adminId = await client.getUserId();
+        const { user_id: adminId } = await matrixRequest("GET", "/account/whoami");
         const widgetId = "postmoogle_dashboard";
 
         console.log("➡️  [Provision] Start provisioning for:", userId);
 
         // 1. Create room
-        const roomId = await client.createRoom({
+        const { room_id: roomId } = await matrixRequest("POST", "/createRoom", {
             name: "Email Service Room",
             topic: "Official Email Service Room",
             invite: botUserId ? [botUserId] : [],
@@ -46,70 +62,61 @@ app.post("/api/provision", async (req, res) => {
             power_level_content_override: {
                 users: {
                     [userId]: 100,
-                    [adminId]: 100
-                }
-            }
+                    [adminId]: 100,
+                },
+            },
         });
-
         console.log("✅ Room created:", roomId);
+
+        const encodedRoomId = encodeURIComponent(roomId);
 
         // 2. Add widget
         if (widgetUrl) {
-            const widgetContent = {
+            await matrixRequest("PUT", `/rooms/${encodedRoomId}/state/m.widget/${widgetId}`, {
                 id: widgetId,
                 url: widgetUrl,
                 name: "Email Dashboard",
                 type: "m.custom",
                 avatar_url: widgetIcon,
                 creatorUserId: adminId,
-                data: {}
-            };
-
-            await client.sendStateEvent(roomId, "m.widget", widgetId, widgetContent);
+                data: {},
+            });
             console.log("✅ Widget added");
         }
 
         // 3. Layout
-        const layoutContent = {
+        await matrixRequest("PUT", `/rooms/${encodedRoomId}/state/io.element.widgets.layout/`, {
             widgets: {
-                [widgetId]: {
-                    container: "right",
-                    width: 30,
-                    index: 0
-                }
-            }
-        };
-
-        await client.sendStateEvent(roomId, "io.element.widgets.layout", "", layoutContent);
+                [widgetId]: { container: "right", width: 30, index: 0 },
+            },
+        });
         console.log("✅ Layout configured");
 
         // 4. Room avatar
         if (widgetIcon) {
-            await client.sendStateEvent(roomId, "m.room.avatar", "", { url: widgetIcon });
+            await matrixRequest("PUT", `/rooms/${encodedRoomId}/state/m.room.avatar/`, { url: widgetIcon });
             console.log("✅ Room avatar set");
         }
 
         // 5. Invite user
         if (userId !== adminId) {
-            await client.inviteUser(userId, roomId);
+            await matrixRequest("POST", `/rooms/${encodedRoomId}/invite`, { user_id: userId });
             console.log("✅ User invited:", userId);
         }
 
         console.log("🎉 Provisioning complete:", roomId);
-
         return res.json({ success: true, roomId });
 
     } catch (err) {
         console.error("❌ Provisioning failed:", err?.body || err);
-
         return res.status(500).json({
             error: "Failed to provision room",
-            details: err?.body?.error || err.message
+            details: err?.body?.error || err.message,
         });
     }
 });
 
 // ================= START SERVER =================
 app.listen(PORT, () => {
-    console.log(`🚀 Provisioning service running on port ${PORT}`);
+    console.log(`Provisioning service running on port ${PORT}`);
 });
