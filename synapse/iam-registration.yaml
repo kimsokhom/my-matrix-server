@@ -1,0 +1,15 @@
+id: iam-platform
+url: null
+as_token: "${IAM_AS_TOKEN}"
+hs_token: "${IAM_HS_TOKEN}"
+rate_limited: false
+sender_localpart: iam-bot
+
+namespaces:
+  users:
+    - exclusive: false
+      regex: "@iam-.*:${SERVER_NAME}"
+  aliases: []
+  rooms: []
+
+protocols: []
