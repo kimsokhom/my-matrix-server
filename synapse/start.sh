@@ -12,6 +12,9 @@ envsubst '$TELEGRAM_AS_TOKEN $TELEGRAM_HS_TOKEN $SERVER_NAME $TELEGRAM_BRIDGE_UR
 envsubst '$HOOKSHOT_AS_TOKEN $HOOKSHOT_HS_TOKEN $SERVER_NAME $HOOKSHOT_INTERNAL_URL' \
     < /etc/synapse/hookshot-registration.yaml.template > /etc/synapse/hookshot-registration.yaml
 
+envsubst '$IAM_AS_TOKEN $IAM_HS_TOKEN $SERVER_NAME' \
+    < /etc/synapse/iam-registration.yaml.template > /etc/synapse/iam-registration.yaml
+
 export SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
 export SYNAPSE_SERVER_NAME=$SERVER_NAME
 export SYNAPSE_REPORT_STATS=no
