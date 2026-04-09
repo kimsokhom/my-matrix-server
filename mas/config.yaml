@@ -87,7 +87,7 @@ clients:
       - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
       - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
 
-  - client_id: "iam-service"
+  - client_id: "${MAS_IAM_CLIENT_ID}"
     client_auth_method: "client_secret_basic"
     client_secret: "${MAS_IAM_SERVICE_SECRET}"
 
