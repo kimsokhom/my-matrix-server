@@ -11,9 +11,7 @@ http:
         - name: assets
         - name: adminapi
       binds:
-        - address: "0.0.0.0:8080"
-
-database:
+        - address: "0.0.0.0:8080  uri: "${MAS_DATABASE_URI}"
   uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 secrets:
@@ -87,6 +85,10 @@ clients:
       - "${SYNAPSE_URL}/_synapse/client/oidc/callback"
       - "${SYNAPSE_URL}/_synapse/client/login/sso/redirect"
 
+  - client_id: "iam-service"
+    client_auth_method: "client_secret_basic"
+    client_secret: "${MAS_IAM_SERVICE_SECRET}"
+
   - client_id: "${ELEMENT_WEB_CLIENT_ID}"
     client_name: "Element Chat"
     client_auth_method: "none"
@@ -128,4 +130,4 @@ policy:
 account:
   # passwords.enabled is false above, so registration is disabled regardless
   password_registration_enabled: false
-  password_registration_email_required: false
+red: false
