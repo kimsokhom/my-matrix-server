@@ -23,6 +23,22 @@ listeners:
     resources:
       - webhooks
 
+    # Widget listener — serves the widget UI
+  - port: 9001
+    bindAddress: "0.0.0.0"
+    prefix: "/hookshot"
+    resources:
+      - widgets
+
+# Widgets
+widgets:
+  addToAdminRooms: false
+  roomSetupWidget:
+    addOnInvite: false
+  publicUrl: "https://${SERVER_NAME}/hookshot/widgetapi/v1/static"
+  branding:
+    widgetTitle: "Hookshot Configuration"
+
 # Generic Webhooks
 # Each Matrix room can generate a unique webhook URL via the !hookshot webhook command.
 # External services call: https://${SERVER_NAME}/hookshot/webhook
