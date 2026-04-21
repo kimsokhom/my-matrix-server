@@ -37,21 +37,21 @@ bot:
   displayname: "Hookshot"
   avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d"
 
-# Uncomment to enable GitHub integration
-# github:
-#   auth:
-#     id: "${GITHUB_APP_ID}"
-#     privateKeyFile: /data/github-private-key.pem
-#   webhook:
-#     secret: "${GITHUB_WEBHOOK_SECRET}"
-#   oauth:
-#     client_id: "${GITHUB_CLIENT_ID}"
-#     client_secret: "${GITHUB_CLIENT_SECRET}"
-#     redirect_uri: "https://${SERVER_NAME}/hookshot/oauth"
-#   defaultOptions:
-#     showIssueRoomLink: false
-#     hotlinkIssues:
-#       prefix: "#"
+# GitHub integration
+github:
+  auth:
+    id: "${GITHUB_APP_ID}"
+    privateKeyFile: /data/github-private-key.pem
+  webhook:
+    secret: "${GITHUB_WEBHOOK_SECRET}"
+  oauth:
+    client_id: "${GITHUB_CLIENT_ID}"
+    client_secret: "${GITHUB_CLIENT_SECRET}"
+    redirect_uri: "https://${SERVER_NAME}/hookshot/oauth"
+  defaultOptions:
+    showIssueRoomLink: false
+    hotlinkIssues:
+      prefix: "#"
 
 # Figma integration
 # figma:
