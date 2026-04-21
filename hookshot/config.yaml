@@ -19,6 +19,7 @@ listeners:
   # Webhook listener — external services POST here
   - port: 9000
     bindAddress: "0.0.0.0"
+    prefix: "/hookshot"
     resources:
       - webhooks
 
