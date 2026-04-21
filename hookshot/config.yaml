@@ -73,13 +73,13 @@ github:
       prefix: "#"
 
 # Figma integration
-# figma:
-#   publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/hookshot/"
-#   instances:
-#     my-team-instance:
-#       teamId: "${FIGMA_TEAM_ID}"
-#       accessToken: "${FIGMA_ACCESS_TOKEN}"
-#       passcode: "${FIGMA_WEBHOOK_PASSCODE}"
+figma:
+  publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/hookshot/"
+  instances:
+    my-team-instance:
+      teamId: "${FIGMA_TEAM_ID}"
+      accessToken: "${FIGMA_ACCESS_TOKEN}"
+      passcode: "${FIGMA_WEBHOOK_PASSCODE}"
 
 # GitLab integration
 gitlab:
