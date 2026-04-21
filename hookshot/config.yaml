@@ -38,6 +38,8 @@ widgets:
   publicUrl: "https://${SERVER_NAME}/hookshot/widgetapi/v1/static"
   branding:
     widgetTitle: "Hookshot Configuration"
+  openIdOverrides:
+    "${SERVER_NAME}": "https://${SERVER_NAME}"
 
 # Generic Webhooks
 # Each Matrix room can generate a unique webhook URL via the !hookshot webhook command.
