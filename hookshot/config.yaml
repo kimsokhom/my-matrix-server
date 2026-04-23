@@ -74,7 +74,7 @@ github:
 
 # Figma integration
 figma:
-  publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/hookshot/"
+  publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/hookshot/figma/webhook"
   instances:
     my-team-instance:
       teamId: "${FIGMA_TEAM_ID}"
