@@ -3,5 +3,5 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "node rotate.js"
-cronSchedule = "0 */6 * * *"
+cronSchedule = "0 */3 * * *"
 restartPolicyType = "NEVER"
