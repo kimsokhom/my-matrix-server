@@ -1,0 +1,12 @@
+{
+  "name": "figma-webhook-rotator",
+  "version": "1.0.0",
+  "description": "Rotates Figma webhook for Hookshot to prevent stale state",
+  "main": "rotate.js",
+  "scripts": {
+    "start": "node rotate.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
