@@ -22,6 +22,7 @@ listeners:
     prefix: "/hookshot"
     resources:
       - webhooks
+      - metrics
 
     # Widget listener — serves the widget UI
   - port: 9001
