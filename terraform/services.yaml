@@ -81,7 +81,7 @@ services:
       SERVER_NAME: "${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
       SYNAPSE_URL: "https://${{synapse.RAILWAY_PUBLIC_DOMAIN}}"
       MAS_URL: "https://${{mas.RAILWAY_PUBLIC_DOMAIN}}"
-      WIDGET_URL: "https://${{postmoogle-widget.RAILWAY_PUBLIC_DOMAIN}}"
+      POSTMOOGLE_WIDGET_URL: "https://${{postmoogle-widget.RAILWAY_PUBLIC_DOMAIN}}"
 
   element-call:
     port: 80
