@@ -53,47 +53,59 @@ bridge:
   # ---------------------------------------------------------------------------
   # PERMISSIONS
   # Controls who can use the bridge and at what level.
-  # "*" matches all Matrix users (any server).
+  # Permitted values:
+  #   relay    - Can send via relay bot only, no login
+  #   commands - Can use bridge commands but not log in
+  #   user     - Can log in with their own Telegram account (+ relay)
+  #   admin    - Full bridge control
+  # "*" matches all Matrix users from any server.
   # ---------------------------------------------------------------------------
   permissions:
-    "*": "relaybot" # Anyone can send via the relay bot (no Telegram login needed)
-    "${SERVER_NAME}": "user" # Users on your server can also log in with their own Telegram account
-    "${ADMIN_MXID}": "admin" # Your admin account has full bridge control
+    "*": relay # Anyone can send via the relay bot
+    "${SERVER_NAME}": user # Your server users can also log in with their own Telegram account
+    "${ADMIN_MXID}": admin # Your admin account has full bridge control
 
   # ---------------------------------------------------------------------------
-  # RELAY BOT
+  # RELAY
   # Configuration for users who send messages through the shared bot account
   # instead of logging in with their own Telegram account.
+  # NOTE: This replaces the old "relaybot:" block from the Python version.
   # ---------------------------------------------------------------------------
-  relaybot:
-    private_chat:
-      invite: [] # Matrix users to auto-invite when someone DMs the bot
-      state_changes: true # Bridge membership events (joins/leaves) to Telegram
-      message: "This is a relay bot. For the full experience, log in with !tg login"
+  relay:
+    # Must be true for relay mode to work at all
+    enabled: true
 
-    group_chat_invite: [] # Matrix users to auto-invite to bridged group portals
+    # If true, only admins can assign themselves as a relay user in a room.
+    # If false, any logged-in user can become the relay for a room.
+    admin_only: false
 
-    # If true, the relay bot will NOT auto-create portals for groups it hasn't
-    # been explicitly invited to. Recommended true to avoid unexpected rooms.
-    ignore_unbridged_group_chat: true
+    # If true, default relay users are preferred even when the user is logged in.
+    prefer_default: true
 
-    # If true, people on the Telegram side can create Matrix portals by inviting
-    # the bot and using /portal. Set false to keep portal creation admin-only.
-    authless_portals: false
+    # Allow non-admins to use the bridge and sync-chat commands via default relays.
+    allow_bridge: true
 
-    whitelist_group_admins: true # Allow Telegram group admins to manage the bot
-    ignore_own_incoming_events: true # Prevent the bot from echoing its own messages
+    # List of Telegram bot login IDs that anyone can set as a relay.
+    # Leave empty for now — can be populated after the bot logs in.
+    default_relays: []
 
     # How relayed Matrix messages appear on the Telegram side.
-    # {displayname} = Matrix display name, {message} = message content
+    # Uses Go template syntax (different from the old Python version).
+    # Available variables:
+    #   {{ .Sender.DisambiguatedName }} - Display name, with user ID if ambiguous
+    #   {{ .Sender.Displayname }}       - Raw display name
+    #   {{ .Sender.UserID }}            - Matrix user ID of the sender
+    #   {{ .Message }}                  - The message content (HTML)
+    #   {{ .Caption }}                  - Caption for media (empty string if not applicable)
+    #   {{ .FileName }}                 - File name for file messages
     message_formats:
-      m.text: "[{displayname}]: {message}"
-      m.notice: "[{displayname}]: {message}"
-      m.emote: "* {displayname} {message}"
-      m.file: "[{displayname}] sent a file: {message}"
-      m.image: "[{displayname}] sent an image: {message}"
-      m.video: "[{displayname}] sent a video: {message}"
-      m.audio: "[{displayname}] sent an audio file: {message}"
+      m.text: "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
+      m.notice: "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
+      m.emote: "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}"
+      m.file: "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      m.image: "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      m.video: "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      m.audio: "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}"
 
   # ---------------------------------------------------------------------------
   # BACKFILL
