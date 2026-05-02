@@ -31,6 +31,9 @@ appservice:
   # PostgreSQL database for storing bridge state, sessions, and message mappings
   database: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${TELEGRAM_DB_NAME}
 
+  bot_username: telegrambot
+  bot_displayname: "Telegram Bot"
+
   # Application service identity — must match registration.yaml
   id: telegram
   as_token: ${TELEGRAM_AS_TOKEN}
