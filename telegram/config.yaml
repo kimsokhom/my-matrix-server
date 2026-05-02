@@ -1,69 +1,158 @@
-# --- HOMESERVER CONFIGURATION ---
-homeserver:
-  address: ${SYNAPSE_INTERNAL_URL}
-  domain: ${SERVER_NAME}
+# =============================================================================
+# MAUTRIX-TELEGRAM BRIDGE CONFIGURATION
+# =============================================================================
+# Environment variables are injected at runtime via start.sh using envsubst.
+# All ${VARIABLE} placeholders must be defined in your Railway environment.
+#
+# Permission levels (bridge.permissions):
+#   relaybot  — Can send messages via the relay bot only (no Telegram login)
+#   user      — Can use relay bot + log in with their own Telegram account
+#   full      — User level + can create new bridge portals
+#   admin     — Full bridge access + administration commands
+# =============================================================================
 
-# --- APPSERVICE CONFIGURATION ---
+# -----------------------------------------------------------------------------
+# HOMESERVER
+# The Matrix homeserver this bridge connects to.
+# -----------------------------------------------------------------------------
+homeserver:
+  address: ${SYNAPSE_INTERNAL_URL} # Internal Railway URL for homeserver communication
+  domain: ${SERVER_NAME} # Public-facing Matrix domain (e.g. matrix.example.com)
+
+# -----------------------------------------------------------------------------
+# APPSERVICE
+# Configures how the bridge registers itself as a Matrix Application Service.
+# -----------------------------------------------------------------------------
 appservice:
-  address: ${TELEGRAM_BRIDGE_URL}
-  hostname: 0.0.0.0
+  address: ${TELEGRAM_BRIDGE_URL} # URL the homeserver uses to reach this bridge
+  hostname: 0.0.0.0 # Listen on all interfaces inside the container
   port: 29317
+
+  # PostgreSQL database for storing bridge state, sessions, and message mappings
   database: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${TELEGRAM_DB_NAME}
 
-  # Identity & Security
+  # Application service identity — must match registration.yaml
   id: telegram
   as_token: ${TELEGRAM_AS_TOKEN}
   hs_token: ${TELEGRAM_HS_TOKEN}
 
-# --- TELEGRAM API CONFIGURATION ---
+# -----------------------------------------------------------------------------
+# TELEGRAM API
+# Credentials from https://my.telegram.org and @BotFather.
+# -----------------------------------------------------------------------------
 telegram:
-  api_id: ${TELEGRAM_API_ID}
-  api_hash: ${TELEGRAM_API_HASH}
+  api_id: ${TELEGRAM_API_ID} # From my.telegram.org → API development tools
+  api_hash: ${TELEGRAM_API_HASH} # From my.telegram.org → API development tools
+  bot_token: ${TELEGRAM_BOT_TOKEN} # From @BotFather — required for relaybot mode
 
-# --- BRIDGE SETTINGS ---
+# -----------------------------------------------------------------------------
+# BRIDGE
+# Core bridge behaviour, permissions, and feature flags.
+# -----------------------------------------------------------------------------
 bridge:
+  # ---------------------------------------------------------------------------
+  # PERMISSIONS
+  # Controls who can use the bridge and at what level.
+  # "*" matches all Matrix users (any server).
+  # ---------------------------------------------------------------------------
   permissions:
-    "${SERVER_NAME}": "user"
-    "${ADMIN_MXID}": "admin"
+    "*": "relaybot" # Anyone can send via the relay bot (no Telegram login needed)
+    "${SERVER_NAME}": "user" # Users on your server can also log in with their own Telegram account
+    "${ADMIN_MXID}": "admin" # Your admin account has full bridge control
 
-  # History & Backfill
+  # ---------------------------------------------------------------------------
+  # RELAY BOT
+  # Configuration for users who send messages through the shared bot account
+  # instead of logging in with their own Telegram account.
+  # ---------------------------------------------------------------------------
+  relaybot:
+    private_chat:
+      invite: [] # Matrix users to auto-invite when someone DMs the bot
+      state_changes: true # Bridge membership events (joins/leaves) to Telegram
+      message: "This is a relay bot. For the full experience, log in with !tg login"
+
+    group_chat_invite: [] # Matrix users to auto-invite to bridged group portals
+
+    # If true, the relay bot will NOT auto-create portals for groups it hasn't
+    # been explicitly invited to. Recommended true to avoid unexpected rooms.
+    ignore_unbridged_group_chat: true
+
+    # If true, people on the Telegram side can create Matrix portals by inviting
+    # the bot and using /portal. Set false to keep portal creation admin-only.
+    authless_portals: false
+
+    whitelist_group_admins: true # Allow Telegram group admins to manage the bot
+    ignore_own_incoming_events: true # Prevent the bot from echoing its own messages
+
+    # How relayed Matrix messages appear on the Telegram side.
+    # {displayname} = Matrix display name, {message} = message content
+    message_formats:
+      m.text: "[{displayname}]: {message}"
+      m.notice: "[{displayname}]: {message}"
+      m.emote: "* {displayname} {message}"
+      m.file: "[{displayname}] sent a file: {message}"
+      m.image: "[{displayname}] sent an image: {message}"
+      m.video: "[{displayname}] sent a video: {message}"
+      m.audio: "[{displayname}] sent an audio file: {message}"
+
+  # ---------------------------------------------------------------------------
+  # BACKFILL
+  # Whether to fetch message history when a portal is first created.
+  # Disabled to reduce Telegram API load and avoid rate limiting on startup.
+  # ---------------------------------------------------------------------------
   backfill:
     enabled: false
-    initial_limit: 10
-    missed_limit: 10
-    disable_notifications: true
+    initial_limit: 10 # Max messages to backfill when first bridging a chat
+    missed_limit: 10 # Max messages to backfill after a bridge restart
+    disable_notifications: true # Suppress notifications for backfilled messages
 
-  # --- PUPPET SETTINGS (The Sync Logic) ---
+  # ---------------------------------------------------------------------------
+  # DOUBLE PUPPETING
+  # Allows the bridge to act as the Matrix user themselves (not just a ghost),
+  # so messages appear to come from the real Matrix account on both sides.
+  # ---------------------------------------------------------------------------
   sync_with_custom_puppets: true
   double_puppet_allow_discovery: true
-  # Map your public domain to the internal Railway address
+
+  # Maps Matrix server domains to their internal homeserver URLs.
+  # Required for double puppeting to work on Railway's internal network.
   double_puppet_server_map:
     ${SERVER_NAME}: ${SYNAPSE_INTERNAL_URL}
 
-  # Authentication
+  # Shared secret from Synapse's registration (used to authenticate puppet logins)
   allow_matrix_login: true
   login_shared_secret_map:
     ${SERVER_NAME}: "${REGISTRATION_SHARED_SECRET}"
 
-  # --- SAFE MODE SETTINGS (Crucial to avoid bans) ---
-  presence: false # NEVER sync "Online" status
-  typing_notifs: false # NEVER sync "Is typing..."
-  read_receipts: false # NEVER sync "Read" checkmarks
+  # ---------------------------------------------------------------------------
+  # SAFE MODE
+  # Disabling these reduces Telegram API calls and lowers the risk of
+  # Telegram rate-limiting or banning the bridge account.
+  # ---------------------------------------------------------------------------
+  presence: false # Do not sync online/offline status to Telegram
+  typing_notifs: false # Do not sync "is typing..." indicators to Telegram
+  read_receipts: false # Do not sync read receipts to Telegram
 
-  # Ensure the bridge doesn't "spam" Telegram during startup
+  # Do not fetch all chats/contacts on startup (reduces API spam on boot)
   startup_sync: false
 
-  # Encryption & Device Management
-  force_unverified_device: true
-  device_name: "Telegram Bridge"
+  # ---------------------------------------------------------------------------
+  # DEVICE & ENCRYPTION
+  # ---------------------------------------------------------------------------
+  force_unverified_device: true # Allow login without device verification
+  device_name: "Telegram Bridge" # How this bridge appears in Telegram's active sessions
 
-  # Disable E2EE - bridge does not need it
+  # E2EE is not needed for a bridge — the bridge itself is the trusted relay point
   encryption:
     allow: false
     default: false
     require: false
 
-# --- LOGGING CONFIGURATION ---
+# -----------------------------------------------------------------------------
+# LOGGING
+# Structured console logging. INFO level is appropriate for production.
+# Change mau/telethon to DEBUG temporarily when troubleshooting.
+# -----------------------------------------------------------------------------
 logging:
   version: 1
   formatters:
@@ -76,9 +165,9 @@ logging:
       stream: ext://sys.stdout
   loggers:
     mau:
-      level: INFO
+      level: INFO # Bridge core logs — set to DEBUG to troubleshoot bridge issues
     telethon:
-      level: INFO
+      level: INFO # Telegram client logs — set to DEBUG to troubleshoot Telegram API issues
   root:
     level: INFO
     handlers: [console]
