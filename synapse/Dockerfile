@@ -8,6 +8,7 @@ COPY homeserver.yaml /etc/synapse/homeserver.yaml.template
 COPY telegram-registration.yaml /etc/synapse/telegram-registration.yaml.template
 COPY hookshot-registration.yaml /etc/synapse/hookshot-registration.yaml.template
 COPY iam-registration.yaml /etc/synapse/iam-registration.yaml.template
+COPY telegram-doublepuppet.yaml /etc/synapse/telegram-doublepuppet.yaml.template
 COPY start.sh /start.sh
 
 RUN chmod +x /start.sh
