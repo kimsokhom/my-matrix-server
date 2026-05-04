@@ -67,6 +67,7 @@ app_service_config_files:
   - /etc/synapse/telegram-registration.yaml
   - /etc/synapse/hookshot-registration.yaml
   - /etc/synapse/iam-registration.yaml
+  - /etc/synapse/telegram-doublepuppet.yaml
 
 # NATIVE MAS (DELEGATION):
 matrix_authentication_service:

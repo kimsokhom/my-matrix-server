@@ -1,0 +1,10 @@
+id: doublepuppet
+url:
+as_token: ${DOUBLEPUPPET_AS_TOKEN}
+hs_token: ${DOUBLEPUPPET_HS_TOKEN}
+sender_localpart: ${DOUBLEPUPPET_SENDER_LOCALPART}
+rate_limited: false
+namespaces:
+  users:
+    - regex: '@.*:${SERVER_NAME}'
+      exclusive: false

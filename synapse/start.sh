@@ -15,6 +15,9 @@ envsubst '$HOOKSHOT_AS_TOKEN $HOOKSHOT_HS_TOKEN $SERVER_NAME $HOOKSHOT_INTERNAL_
 envsubst '$IAM_AS_TOKEN $IAM_HS_TOKEN $SERVER_NAME' \
     < /etc/synapse/iam-registration.yaml.template > /etc/synapse/iam-registration.yaml
 
+envsubst '$DOUBLEPUPPET_AS_TOKEN $DOUBLEPUPPET_HS_TOKEN $DOUBLEPUPPET_SENDER_LOCALPART $SERVER_NAME' \
+    < /etc/synapse/telegram-doublepuppet.yaml.template > /etc/synapse/telegram-doublepuppet.yaml
+
 export SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
 export SYNAPSE_SERVER_NAME=$SERVER_NAME
 export SYNAPSE_REPORT_STATS=no
