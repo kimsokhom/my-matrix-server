@@ -19,6 +19,7 @@ rate_limited: false
 namespaces:
   users:
   # Replace your\.domain with your server name (escape dots for regex)
-  - regex: '@.*:${SERVER_NAME}'
+  # - regex: '@.*:${SERVER_NAME}'
+  - regex: '@.*:synapse-kim-sokhom-matrix-email-bridge\.up\.railway\.app'
     # This must be false so the appservice doesn't take over all users completely.
     exclusive: false
