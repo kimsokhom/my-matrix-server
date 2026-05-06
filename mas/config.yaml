@@ -117,7 +117,7 @@ branding:
   service_name: "My Matrix Server"
 
 passwords:
-  enabled: false
+  enabled: true
 
 # Section to control token lifetimes
 policy:
