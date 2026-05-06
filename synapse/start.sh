@@ -15,7 +15,10 @@ envsubst '$HOOKSHOT_AS_TOKEN $HOOKSHOT_HS_TOKEN $SERVER_NAME $HOOKSHOT_INTERNAL_
 envsubst '$IAM_AS_TOKEN $IAM_HS_TOKEN $SERVER_NAME' \
     < /etc/synapse/iam-registration.yaml.template > /etc/synapse/iam-registration.yaml
 
-envsubst '$DOUBLEPUPPET_AS_TOKEN $DOUBLEPUPPET_HS_TOKEN $DOUBLEPUPPET_SENDER_LOCALPART $SERVER_NAME' \
+# Escape dots in SERVER_NAME for regex
+export ESCAPED_SERVER_NAME=$(echo "$SERVER_NAME" | sed 's/\./\\./g')
+
+envsubst '$DOUBLEPUPPET_AS_TOKEN $DOUBLEPUPPET_HS_TOKEN $DOUBLEPUPPET_SENDER_LOCALPART $ESCAPED_SERVER_NAME' \
     < /etc/synapse/telegram-doublepuppet.yaml.template > /etc/synapse/telegram-doublepuppet.yaml
 
 export SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
