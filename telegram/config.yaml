@@ -1,108 +1,329 @@
-# =============================================================================
-# MAUTRIX-TELEGRAM BRIDGE CONFIGURATION (Go bridgev2 version)
-# =============================================================================
+# Network-specific config options
+network:
+    # Get your own API keys at https://my.telegram.org/apps
+    api_id: ${TELEGRAM_API_ID}
+    api_hash: ${TELEGRAM_API_HASH}
 
-# -----------------------------------------------------------------------------
-# HOMESERVER
-# -----------------------------------------------------------------------------
-homeserver:
-  address: ${SYNAPSE_INTERNAL_URL}
-  domain: ${SERVER_NAME}
-  software: standard
+    # Bot token from @BotFather — required for relay mode
+    bot_token: ${TELEGRAM_BOT_TOKEN}
 
-# -----------------------------------------------------------------------------
-# APPSERVICE
-# -----------------------------------------------------------------------------
-appservice:
-  address: ${TELEGRAM_BRIDGE_URL}
-  hostname: 0.0.0.0
-  port: 29317
-  database:
+    # Device info shown in the Telegram device list.
+    device_info:
+        device_model: mautrix-telegram
+        system_version:
+        app_version: auto
+        lang_code: en
+        system_lang_code: en
+
+    # Settings for converting animated stickers.
+    animated_sticker:
+        # Format to which animated stickers should be converted.
+        #
+        # disable - no conversion, send as-is (gzipped lottie)
+        # png -     converts to non-animated png (fastest),
+        # gif -     converts to animated gif
+        # webm -    converts to webm video, requires ffmpeg executable with vp9 codec
+        #           and webm container support
+        # webp -    converts to animated webp, requires ffmpeg executable with webp
+        #           codec/container support
+        target: gif
+        # Should video stickers be converted to the specified format as well?
+        convert_from_webm: false
+        # Arguments for converter. All converters take width and height.
+        args:
+            width: 256
+            height: 256
+            fps: 25 # only for webm, webp and gif (2, 5, 10, 20 or 25 recommended)
+
+    # Settings for syncing the member list for portals.
+    member_list:
+        # Maximum number of members to sync per portal when starting up. Other
+        # members will be synced when they send messages. The maximum is 10000,
+        # after which the Telegram server will not send any more members.
+        #
+        # -1 means no limit (which means it's limited to 10000 by the server)
+        max_initial_sync: 100
+        # Whether or not to sync the member list in broadcast channels. If
+        # disabled, members will still be synced when they send messages.
+        #
+        # If no channel admins have logged into the bridge, the bridge won't be
+        # able to sync the member list regardless of this setting.
+        sync_broadcast_channels: false
+        # Whether or not to skip deleted members when syncing members.
+        skip_deleted: true
+
+    # Settings for pings to the Telegram server.
+    ping:
+        # The interval (in seconds) between pings.
+        interval_seconds: 30
+        # The timeout (in seconds) for a single ping.
+        timeout_seconds: 10
+
+    # Proxy settings
+    proxy:
+        # Allowed types: disabled, socks5, mtproxy
+        type: disabled
+        address: "127.0.0.1:1080"
+        username:
+        password:
+
+    sync:
+        # Number of most recently active dialogs to check when syncing chats.
+        # Set to -1 to remove limit.
+        update_limit: 100
+        # Number of most recently active dialogs to create portals for when syncing chats.
+        # Set to -1 to remove limit.
+        create_limit: 15
+        # Number of chats to sync immediately on login before the data export is accepted.
+        login_sync_limit: 15
+        # Whether or not to sync and create portals for direct chats at startup.
+        direct_chats: true
+
+    takeout:
+        dialog_sync: false
+        forward_backfill: false
+        backward_backfill: false
+
+    # -1 means no limit
+    max_member_count: -1
+    contact_avatars: false
+    contact_names: false
+    always_custom_emoji_reaction: false
+    saved_message_avatar: mxc://maunium.net/XhhfHoPejeneOngMyBbtyWDk
+    always_tombstone_on_supergroup_migration: false
+    image_as_file_pixels: 16777216
+    disable_view_once: false
+    displayname_template: "{{ if .Deleted }}Deleted account {{ .UserID }}{{ else }}{{ .FullName }}{{ end }}"
+
+
+# Config options that affect the central bridge module.
+bridge:
+    command_prefix: '!tg'
+    personal_filtering_spaces: true
+    private_chat_portal_meta: true
+    async_events: false
+    split_portals: false
+    resend_bridge_info: false
+    no_bridge_info_state_key: false
+    bridge_status_notices: errors
+    unknown_error_auto_reconnect: null
+    unknown_error_max_auto_reconnects: 10
+    bridge_matrix_leave: false
+    bridge_notices: false
+    tag_only_on_create: true
+    only_bridge_tags: [m.favourite, m.lowpriority]
+    mute_only_on_create: true
+    deduplicate_matrix_messages: false
+    cross_room_replies: false
+    revert_failed_state_changes: false
+    kick_matrix_users: true
+    enable_send_state_requests: false
+    phone_numbers_in_profile: false
+
+    cleanup_on_logout:
+        enabled: false
+        manual:
+            private: nothing
+            relayed: nothing
+            shared_no_users: nothing
+            shared_has_users: nothing
+        bad_credentials:
+            private: nothing
+            relayed: nothing
+            shared_no_users: nothing
+            shared_has_users: nothing
+
+    # ---------------------------------------------------------------------------
+    # RELAY MODE
+    # Enables relay bot for users who haven't logged in with their own Telegram account.
+    # ---------------------------------------------------------------------------
+    relay:
+        enabled: true
+        admin_only: false
+        prefer_default: true
+        allow_bridge: true
+        default_relays: []
+        message_formats:
+            m.text: "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
+            m.notice: "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
+            m.emote: "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}"
+            m.file: "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}"
+            m.image: "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}"
+            m.audio: "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}"
+            m.video: "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}"
+            m.location: "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+        displayname_format: "{{ .DisambiguatedName }}"
+
+    portal_create_filter:
+        mode: deny
+        list: []
+        always_deny_from_login: []
+
+    # ---------------------------------------------------------------------------
+    # PERMISSIONS
+    # relay    - Relay bot only, no login
+    # user     - Can log in with own Telegram account
+    # admin    - Full bridge control
+    # ---------------------------------------------------------------------------
+    permissions:
+        "*": relay
+        "${SERVER_NAME}": user
+        "${ADMIN_MXID}": admin
+
+
+# Config for the bridge's database.
+database:
     type: postgres
     uri: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${TELEGRAM_DB_NAME}
+    max_open_conns: 5
+    max_idle_conns: 1
+    max_conn_idle_time: null
+    max_conn_lifetime: null
 
-  id: telegram
-  as_token: ${TELEGRAM_AS_TOKEN}
-  hs_token: ${TELEGRAM_HS_TOKEN}
 
-  # Bot identity shown in Matrix
-  bot:
-    username: telegrambot
-    displayname: "Telegram Bot"
+# Homeserver details.
+homeserver:
+    address: ${SYNAPSE_INTERNAL_URL}
+    domain: ${SERVER_NAME}
+    software: standard
+    status_endpoint:
+    message_send_checkpoint_endpoint:
+    async_media: false
+    websocket: false
+    ping_interval_seconds: 0
 
-# -----------------------------------------------------------------------------
-# TELEGRAM API
-# Credentials from https://my.telegram.org and @BotFather.
-# -----------------------------------------------------------------------------
-telegram:
-  api_id: ${TELEGRAM_API_ID}
-  api_hash: ${TELEGRAM_API_HASH}
-  bot_token: ${TELEGRAM_BOT_TOKEN}
 
-# -----------------------------------------------------------------------------
-# BRIDGE
-# -----------------------------------------------------------------------------
-bridge:
-  # ---------------------------------------------------------------------------
-  # PERMISSIONS
-  # relay    - Relay bot only, no login
-  # user     - Can log in with own Telegram account
-  # admin    - Full bridge control
-  # ---------------------------------------------------------------------------
-  permissions:
-    "*": relay
-    "${SERVER_NAME}": user
-    "${ADMIN_MXID}": admin
+# Application service host/registration related details.
+appservice:
+    address: ${TELEGRAM_BRIDGE_URL}
+    public_address:
+    hostname: 0.0.0.0
+    port: 29317
+    id: telegram
+    bot:
+        username: telegrambot
+        displayname: Telegram Bot
+        avatar: mxc://maunium.net/tJCRmUyJDsgRNgqhOgoiHWbX
+    ephemeral_events: true
+    async_transactions: false
+    as_token: ${TELEGRAM_AS_TOKEN}
+    hs_token: ${TELEGRAM_HS_TOKEN}
+    username_template: telegram_{{.}}
 
-  # ---------------------------------------------------------------------------
-  # RELAY MODE
-  # ---------------------------------------------------------------------------
-  relay:
-    enabled: true
-    admin_only: false
-    prefer_default: true
-    allow_bridge: true
-    default_relays: []
-    message_formats:
-      m.text:   "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
-      m.notice: "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}"
-      m.emote:  "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}"
-      m.file:   "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}"
-      m.image:  "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}"
-      m.video:  "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}"
-      m.audio:  "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}"
 
-  # ---------------------------------------------------------------------------
-  # BACKFILL
-  # Disabled to avoid Telegram API spam and reduce ban risk.
-  # ---------------------------------------------------------------------------
-  backfill:
+# Config options that affect the Matrix connector of the bridge.
+matrix:
+    message_status_events: false
+    delivery_receipts: false
+    message_error_notices: true
+    sync_direct_chat_list: true
+    federate_rooms: true
+    upload_file_threshold: 5242880
+    ghost_extra_profile_info: false
+
+
+# Analytics — disabled
+analytics:
+    token: null
+    url: https://api.segment.io/v1/track
+    user_id: null
+
+
+# Provisioning API
+provisioning:
+    shared_secret: generate
+    allow_matrix_auth: true
+    debug_endpoints: false
+    enable_session_transfers: false
+
+
+# Public media — disabled
+public_media:
     enabled: false
+    signing_key: generate
+    expiry: 0
+    hash_length: 32
+    path_prefix: /_mautrix/publicmedia
+    use_database: false
 
-  # ---------------------------------------------------------------------------
-  # DOUBLE PUPPETING
-  # Go bridgev2 uses appservice method — no shared secret needed.
-  # ---------------------------------------------------------------------------
-  double_puppet:
+
+# Direct media — disabled
+direct_media:
+    enabled: false
+    server_name: discord-media.example.com
+    well_known_response:
+    media_id_prefix:
+    allow_proxy: true
+    server_key: generate
+
+
+# Backfill — disabled to avoid Telegram API spam and reduce ban risk
+backfill:
+    enabled: false
+    max_initial_messages: 50
+    max_catchup_messages: 500
+    unread_hours_threshold: 720
+    threads:
+        max_initial_messages: 50
+    queue:
+        enabled: false
+        manual: false
+        batch_size: 100
+        batch_delay: 20
+        max_batches: -1
+        max_batches_override: {}
+
+
+# ---------------------------------------------------------------------------
+# DOUBLE PUPPETING
+# Automatic appservice method — no manual login-matrix needed per user.
+# See https://docs.mau.fi/bridges/general/double-puppeting.html
+# ---------------------------------------------------------------------------
+double_puppet:
     servers: {}
     allow_discovery: false
     secrets:
-      ${SERVER_NAME}: "as_token:${DOUBLEPUPPET_AS_TOKEN}"
+        ${SERVER_NAME}: "as_token:${DOUBLEPUPPET_AS_TOKEN}"
 
-  # ---------------------------------------------------------------------------
-  # ENCRYPTION — disabled, bridge does not need E2EE
-  # ---------------------------------------------------------------------------
-  encryption:
+
+# Encryption — disabled, bridge does not need E2EE
+encryption:
     allow: false
     default: false
     require: false
+    appservice: false
+    msc4190: false
+    msc4392: false
+    self_sign: false
+    allow_key_sharing: true
+    pickle_key: generate
+    delete_keys:
+        delete_outbound_on_ack: false
+        dont_store_outbound: false
+        ratchet_on_decrypt: false
+        delete_fully_used_on_decrypt: false
+        delete_prev_on_new_session: false
+        delete_on_device_delete: false
+        periodically_delete_expired: false
+        delete_outdated_inbound: false
+    verification_levels:
+        receive: unverified
+        send: unverified
+        share: cross-signed-tofu
+    rotation:
+        enable_custom: false
+        milliseconds: 604800000
+        messages: 100
+        disable_device_change_key_rotation: false
 
-# -----------------------------------------------------------------------------
-# LOGGING (Go zeroconfig format — different from Python)
-# Set min_level to debug temporarily when troubleshooting.
-# -----------------------------------------------------------------------------
+
+# Environment variable config overrides — disabled
+env_config_prefix: null
+
+
+# Logging — INFO level for production, change to debug when troubleshooting
 logging:
-  min_level: info
-  writers:
-    - type: stdout
-      format: pretty-colored
+    min_level: info
+    writers:
+        - type: stdout
+          format: pretty-colored
