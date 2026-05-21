@@ -92,9 +92,9 @@ clients:
   - client_id: "${MAS_IAM_CLIENT_ID}"
     client_auth_method: "client_secret_basic"
     client_secret: "${MAS_IAM_SERVICE_SECRET}"
-    # Allow MAS IAM client to request admin-scoped client_credentials tokens
-    # so it can obtain `urn:mas:admin` tokens used by the IAM service.
-    scope: "urn:mas:admin"
+    # admin: true marks this as an admin client so the built-in policy allows
+    # it to request urn:mas:admin scope via client_credentials grants.
+    admin: true
 
   - client_id: "${ELEMENT_WEB_CLIENT_ID}"
     client_name: "Element Chat"
