@@ -63,9 +63,11 @@ upstream_oauth2:
         skip_confirmation: true
 
         # Matrix localpart/username from Hydra claims
+        # Always use the stable OIDC subject (Kratos UUID) so MAS and IAM agree on the
+        # Matrix user ID. Using preferred_username caused @user40:server vs @uuid:server mismatches.
         localpart:
           action: require
-          template: "{{ (user.username or user.preferred_username or user.sub) | lower }}"
+          template: "{{ user.sub }}"
           on_conflict: add
 
         # Import email from Hydra ID token
