@@ -1,0 +1,9 @@
+{
+  "name": "Telegram Bridge",
+  "short_name": "Telegram",
+  "description": "Connect and manage your Telegram account from Matrix",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2AABEE",
+  "background_color": "#f0f4f8"
+}
