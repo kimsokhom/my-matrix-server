@@ -231,7 +231,7 @@ analytics:
 
 # Provisioning API
 provisioning:
-    shared_secret: generate
+    shared_secret: ${TELEGRAM_PROVISIONING_SECRET}
     allow_matrix_auth: true
     debug_endpoints: false
     enable_session_transfers: false
