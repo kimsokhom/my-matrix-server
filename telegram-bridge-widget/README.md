@@ -26,10 +26,15 @@ This widget replaces that with a clean UI: a login wizard, a contact list, and a
 | **Login wizard** | Lets the user pick a login method, then guides them step by step. |
 | **Three login methods** | **Phone number**, **QR code**, and **Bot token**. |
 | **Profile card** | Shows the connected Telegram name and phone number. |
-| **My Chats** | Lists the user's Telegram contacts with a link to open the chat. |
+| **My Contacts** | Lists your Telegram contacts; open a chat with any of them. |
 | **Find User** | Searches Telegram for a person and starts a direct message. |
 | **Disconnect** | Logs out from Telegram, with a confirm question first. |
 | **Works in browser and Element** | Detects the user automatically in Element, or asks once in a browser. |
+
+> **Why "Contacts" and not "Chats"?** The bridge's API only gives a **contacts** list — it has no
+> "chat list" endpoint. Your real Telegram chats are bridged as normal **Matrix rooms**, so they
+> already show up in Element's room list. The widget's job here is to let you *find a contact and
+> start a chat*, so the button is labelled **My Contacts**.
 
 ---
 

@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, svg } from 'lit';
 import * as MatrixWidget from 'matrix-widget-api';
 import QRCode from 'qrcode';
 
@@ -22,7 +22,27 @@ const API = {
   CREATE_DM:    (id)                => `${BRIDGE_URL}/_matrix/provision/v3/create_dm/${encodeURIComponent(id)}`,
 };
 
-const VIEWS = { HOME: 'home', LOGIN: 'login', CHATS: 'chats', SEARCH: 'search' };
+const VIEWS = { HOME: 'home', LOGIN: 'login', CONTACTS: 'contacts', SEARCH: 'search' };
+
+// Modern outline icons (Lucide/Feather style), inline so there is no extra dependency.
+// They inherit color via `currentColor` and are sized per-holder in CSS.
+const svgIcon = (inner) => html`
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    ${inner}
+  </svg>`;
+
+const ICONS = {
+  send:        svgIcon(svg`<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>`),
+  users:       svgIcon(svg`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`),
+  search:      svgIcon(svg`<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`),
+  logout:      svgIcon(svg`<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>`),
+  smartphone:  svgIcon(svg`<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>`),
+  qrCode:      svgIcon(svg`<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="20" x2="14" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="18" y2="21"/>`),
+  bot:         svgIcon(svg`<path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>`),
+  refresh:     svgIcon(svg`<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`),
+  chevronLeft: svgIcon(svg`<polyline points="15 18 9 12 15 6"/>`),
+};
 
 export class TelegramBridgeWidget extends LitElement {
 
@@ -35,7 +55,7 @@ export class TelegramBridgeWidget extends LitElement {
     loginStep:      { type: Object },   // current step object from the API
     stepInputs:     { type: Object },   // { fieldId: value } for the current user_input step
     qrDataUrl:      { type: String },   // rendered QR image for display_and_wait steps
-    chats:          { type: Array },
+    contacts:       { type: Array },
     searchQuery:    { type: String },
     searchResults:  { type: Array },
     isLoading:      { type: Boolean },
@@ -55,7 +75,7 @@ export class TelegramBridgeWidget extends LitElement {
     this.loginStep = null;
     this.stepInputs = {};
     this.qrDataUrl = '';
-    this.chats = [];
+    this.contacts = [];
     this.searchQuery = '';
     this.searchResults = [];
     this.isLoading = false;
@@ -342,14 +362,14 @@ export class TelegramBridgeWidget extends LitElement {
     }
   }
 
-  async _fetchChats() {
+  async _fetchContacts() {
     this.isLoading = true;
-    this.chats = [];
+    this.contacts = [];
     try {
       const res = await fetch(this._u(API.CONTACTS), { headers: this._authHeaders() });
-      if (!res.ok) { this._showNotification('Failed to load chats', 'error'); return; }
+      if (!res.ok) { this._showNotification('Failed to load contacts', 'error'); return; }
       const data = await res.json();
-      this.chats = data.contacts ?? [];
+      this.contacts = data.contacts ?? [];
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
@@ -470,11 +490,11 @@ export class TelegramBridgeWidget extends LitElement {
         <header class="header">
           <div class="header-row">
             <div class="brand">
-              <span class="brand-icon">✈</span>
+              <span class="brand-icon">${ICONS.send}</span>
               <h1>Telegram Bridge</h1>
             </div>
             ${this.view !== VIEWS.HOME ? html`
-              <button class="btn-back" @click=${() => { this.view = VIEWS.HOME; }}>← Back</button>
+              <button class="btn-back" @click=${() => { this.view = VIEWS.HOME; }}>${ICONS.chevronLeft} Back</button>
             ` : ''}
           </div>
           ${this._renderStatusBadge()}
@@ -488,7 +508,7 @@ export class TelegramBridgeWidget extends LitElement {
           ${this._needsUserId         ? this._renderUserIdPrompt() :
             this.view === VIEWS.HOME  ? this._renderHome()   :
             this.view === VIEWS.LOGIN ? this._renderLogin()  :
-            this.view === VIEWS.CHATS ? this._renderChats()  :
+            this.view === VIEWS.CONTACTS ? this._renderContacts()  :
                                         this._renderSearch()}
         </main>
 
@@ -541,7 +561,7 @@ export class TelegramBridgeWidget extends LitElement {
   _renderUserIdPrompt() {
     return html`
       <div class="card center-card">
-        <div class="welcome-icon">✈</div>
+        <div class="welcome-icon">${ICONS.send}</div>
         <h2>Enter Your Matrix ID</h2>
         <p class="welcome-desc">
           Could not detect your Matrix account automatically.<br>
@@ -589,18 +609,18 @@ export class TelegramBridgeWidget extends LitElement {
 
         <div class="action-grid">
           <button class="action-btn"
-            @click=${() => { this.view = VIEWS.CHATS; this._fetchChats(); }}>
-            <span class="action-icon">💬</span>
-            <span>My Chats</span>
+            @click=${() => { this.view = VIEWS.CONTACTS; this._fetchContacts(); }}>
+            <span class="action-icon">${ICONS.users}</span>
+            <span>My Contacts</span>
           </button>
           <button class="action-btn"
             @click=${() => { this.view = VIEWS.SEARCH; this.searchQuery = ''; this.searchResults = []; }}>
-            <span class="action-icon">🔍</span>
+            <span class="action-icon">${ICONS.search}</span>
             <span>Find User</span>
           </button>
           <button class="action-btn action-btn--danger"
             @click=${this._logout} ?disabled=${this.isLoading}>
-            <span class="action-icon">🔌</span>
+            <span class="action-icon">${ICONS.logout}</span>
             <span>Disconnect</span>
           </button>
         </div>
@@ -610,7 +630,7 @@ export class TelegramBridgeWidget extends LitElement {
     // disconnected or error
     return html`
       <div class="card welcome-card">
-        <div class="welcome-icon">✈</div>
+        <div class="welcome-icon">${ICONS.send}</div>
         <h2>Connect Your Telegram</h2>
         <p class="welcome-desc">
           Link your Telegram account to send and receive messages
@@ -621,7 +641,7 @@ export class TelegramBridgeWidget extends LitElement {
           ${this.isLoading ? html`<span class="spinner"></span>` : 'Connect Telegram Account'}
         </button>
         ${this.status === 'error' ? html`
-          <p class="error-hint">⚠ ${this._statusError || 'Bridge error.'}</p>
+          <p class="error-hint">${this._statusError || 'Bridge error.'}</p>
         ` : ''}
       </div>
     `;
@@ -681,9 +701,9 @@ export class TelegramBridgeWidget extends LitElement {
   }
 
   _flowIcon(id) {
-    if (id === 'qr')  return '📱';
-    if (id === 'bot') return '🤖';
-    return '📞'; // phone / default
+    if (id === 'qr')  return ICONS.qrCode;
+    if (id === 'bot') return ICONS.bot;
+    return ICONS.smartphone; // phone / default
   }
 
   // Render one input per field in the current user_input step.
@@ -728,15 +748,15 @@ export class TelegramBridgeWidget extends LitElement {
 
   // ─── Chats view ──────────────────────────────────────────────────────────────
 
-  _renderChats() {
+  _renderContacts() {
     return html`
       <div class="card">
 
         <div class="section-header">
-          <h2>My Telegram Chats</h2>
-          <button class="btn-icon" @click=${this._fetchChats}
+          <h2>My Telegram Contacts</h2>
+          <button class="btn-icon" @click=${this._fetchContacts}
             ?disabled=${this.isLoading} title="Refresh">
-            ${this.isLoading ? html`<span class="spinner-sm"></span>` : '↺ Refresh'}
+            ${this.isLoading ? html`<span class="spinner-sm"></span>` : html`${ICONS.refresh} Refresh`}
           </button>
         </div>
 
@@ -744,22 +764,22 @@ export class TelegramBridgeWidget extends LitElement {
           <div class="center-card"><span class="spinner-lg"></span></div>
         ` : ''}
 
-        ${!this.isLoading && this.chats.length === 0 ? html`
+        ${!this.isLoading && this.contacts.length === 0 ? html`
           <div class="empty-state">
-            <p>No chats found.</p>
+            <p>No contacts found.</p>
             <p class="muted">Your Telegram contacts appear here once the bridge syncs them.</p>
           </div>
         ` : ''}
 
         <div class="chat-list">
-          ${this.chats.map(chat => this._renderChatItem(chat))}
+          ${this.contacts.map(contact => this._renderContactItem(contact))}
         </div>
 
       </div>
     `;
   }
 
-  _renderChatItem(chat) {
+  _renderContactItem(chat) {
     const name    = chat.name ?? chat.mxid ?? '?';
     const initial = name[0].toUpperCase();
     // identifiers look like "tel:+855..." or "telegram:username"
@@ -893,6 +913,7 @@ export class TelegramBridgeWidget extends LitElement {
       font-style: normal;
       flex-shrink: 0;
     }
+    .brand-icon svg { width: 22px; height: 22px; }
 
     h1 {
       font-size: 1.25rem;
@@ -901,10 +922,13 @@ export class TelegramBridgeWidget extends LitElement {
     }
 
     .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       background: #f0f4f8;
       border: none;
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 6px 12px 6px 8px;
       font-size: 0.875rem;
       color: #525760;
       cursor: pointer;
@@ -912,6 +936,7 @@ export class TelegramBridgeWidget extends LitElement {
       transition: background 0.15s;
     }
     .btn-back:hover { background: #e2e8f0; }
+    .btn-back svg { width: 16px; height: 16px; }
 
     /* ── Status badge ── */
     .status-badge {
@@ -1028,7 +1053,8 @@ export class TelegramBridgeWidget extends LitElement {
 
     .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .action-icon { font-size: 1.6rem; }
+    .action-icon { display: inline-flex; align-items: center; justify-content: center; }
+    .action-icon svg { width: 26px; height: 26px; }
 
     /* ── Welcome card ── */
     .welcome-card {
@@ -1049,6 +1075,7 @@ export class TelegramBridgeWidget extends LitElement {
       margin: 0 auto 20px;
       font-style: normal;
     }
+    .welcome-icon svg { width: 34px; height: 34px; }
 
     .welcome-card h2 {
       font-size: 1.3rem;
@@ -1128,7 +1155,8 @@ export class TelegramBridgeWidget extends LitElement {
     }
     .flow-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    .flow-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .flow-icon { display: inline-flex; flex-shrink: 0; color: #2AABEE; }
+    .flow-icon svg { width: 24px; height: 24px; }
     .flow-text { display: flex; flex-direction: column; gap: 2px; }
     .flow-name { font-weight: 700; font-size: 0.95rem; color: #17191c; }
     .flow-desc { font-size: 0.8rem; color: #737780; }
@@ -1322,6 +1350,7 @@ export class TelegramBridgeWidget extends LitElement {
       transition: background 0.15s;
     }
     .btn-icon:hover:not(:disabled) { background: #e2e8f0; }
+    .btn-icon svg { width: 15px; height: 15px; }
 
     /* ── Chat list ── */
     .chat-list { display: flex; flex-direction: column; gap: 10px; }
