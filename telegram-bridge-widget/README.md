@@ -1,85 +1,124 @@
 # Telegram Bridge Widget
 
-A Matrix room widget that provides a friendly graphical interface for the [mautrix-telegram](https://docs.mau.fi/bridges/python/telegram/index.html) bridge. Instead of typing raw `!tg` commands in a chat room, users get a clean step-by-step UI to connect their Telegram account, browse bridged chats, and find other Telegram users — all from inside Element Web.
+A Matrix room widget that gives a friendly screen for the [mautrix-telegram](https://docs.mau.fi/bridges/go/telegram/index.html) bridge. Instead of typing raw `!tg` commands in a chat, the user gets a simple UI to connect their Telegram account, see their Telegram contacts, find people, and start chats — all from inside Element Web **or** a normal web browser.
 
 ---
 
 ## Why This Exists
 
-The mautrix-telegram bridge is powerful but technical. New users must know commands like:
+The mautrix-telegram bridge is strong but technical. A new user must know commands like:
 
 ```
 !tg login
 +85512345678
 12345
-!tg sync chats
-!tg pm @username
 ```
 
-This widget replaces that flow with a proper UI — a login wizard, a chat list, and a search panel — making the bridge accessible to non-technical users.
+This widget replaces that with a clean UI: a login wizard, a contact list, and a search box. Now non-technical users can use the bridge easily.
 
 ---
 
-## Features
+## What This Widget Can Do
 
-| Feature                     | Description                                                                  |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| **Connection status** | Live badge showing whether Telegram is connected                             |
-| **Login wizard**      | Step-by-step: phone number → verification code → 2FA password (if enabled) |
-| **Profile card**      | Displays connected Telegram username and phone number                        |
-| **My Chats**          | Lists all bridged Telegram portals with direct "Open" links                  |
-| **Sync chats**        | One-click refresh to pull the latest portals from the bridge                 |
-| **Find User**         | Search any Telegram user by `@username` or phone number and start a DM     |
-| **Disconnect**        | Safely log out from Telegram with a confirmation prompt                      |
+| Feature | What it does |
+| --- | --- |
+| **Connection status** | A live badge shows if Telegram is connected or not. |
+| **Login wizard** | Lets the user pick a login method, then guides them step by step. |
+| **Three login methods** | **Phone number**, **QR code**, and **Bot token**. |
+| **Profile card** | Shows the connected Telegram name and phone number. |
+| **My Chats** | Lists the user's Telegram contacts with a link to open the chat. |
+| **Find User** | Searches Telegram for a person and starts a direct message. |
+| **Disconnect** | Logs out from Telegram, with a confirm question first. |
+| **Works in browser and Element** | Detects the user automatically in Element, or asks once in a browser. |
 
 ---
 
 ## Tech Stack
 
-| Layer              | Choice                                                                  |
-| ------------------ | ----------------------------------------------------------------------- |
-| UI framework       | [Lit](https://lit.dev/) v3 (Web Components)                                |
+| Layer | Choice |
+| --- | --- |
+| UI framework | [Lit](https://lit.dev/) v3 (Web Components) |
 | Matrix integration | [matrix-widget-api](https://github.com/matrix-org/matrix-widget-api) v1.17 |
-| Build tool         | [Vite](https://vitejs.dev/) v7                                             |
-| Language           | Vanilla JavaScript (ES modules)                                         |
-| Deployment         | Docker + Railway (`serve` static file server)                         |
-
-> Same stack as the postmoogle widget in this project — consistent pattern across all widgets.
-
----
-
-## How It Works
-
-The widget communicates with the mautrix-telegram bridge's built-in **Provisioning REST API** (`/_matrix/provision/v3/`). This means:
-
-- No message parsing — responses are clean JSON, not bot text
-- Authentication uses the bridge's `provisioning.shared_secret`
-- All actions (login, logout, portal list, DM creation) go through dedicated REST endpoints
-
-```
-Element Web (iframe)
-  └── telegram-bridge-widget
-        └── fetch() → /_matrix/provision/v3/...
-              └── mautrix-telegram bridge (Railway)
-```
+| QR codes | [qrcode](https://www.npmjs.com/package/qrcode) v1.5 |
+| Build tool | [Vite](https://vitejs.dev/) v7 |
+| Language | Vanilla JavaScript (ES modules) |
+| Deployment | Docker + Railway (`serve` static file server) |
 
 ---
 
-## Folder Structure
+## The Bug We Found and Fixed (Important)
+
+Before this work, the widget showed two errors:
+
+1. **"Bridge returned 404 on GET /login"** when the user clicked *Connect Telegram Account*.
+2. **"Not connected"** even when the Telegram account was really connected.
+
+### What people thought the problem was
+
+The first idea was: *"The bridge does not have a login API, so we must build an extra helper service (`telegram-login-adapter`) to add it."* That helper used a Synapse admin token and read the bot's text messages. It was risky and easy to break.
+
+### What the real problem was
+
+We tested the **live bridge** directly and found the truth: **the bridge does have a full login API.** The widget was just calling the **wrong URL paths.**
+
+The bridge uses the newer **mautrix-go bridgev2** style. In this style the login routes are *nested*, like `/login/flows` and `/login/start/...`. But the widget was calling a flat path `/login`, which does not exist — so the bridge answered **404 Not Found**.
+
+Proof from the live bridge:
+
+| What the widget called | Result | The correct path | Result |
+| --- | --- | --- | --- |
+| `GET /v3/login` | **404** Not Found | `GET /v3/login/flows` | **200** OK ✅ |
+| `GET /v3/portals` | **404** Not Found | `GET /v3/contacts` | **200** OK ✅ |
+
+The "Not connected" bug had a second cause: the widget read the wrong field from the status response. The bridge returns the account inside a `logins` list, but the old code looked for a field called `telegram`, which does not exist.
+
+### What we changed
+
+- We fixed **all** the API paths to match the real bridgev2 API.
+- We fixed the status check to read the `logins` list.
+- We **deleted** the `telegram-login-adapter` helper service. It is not needed, because the bridge already does login by itself. This also removes the security risk of the admin token.
+
+So the final design is simple and safe:
 
 ```
-telegram-bridge-widget/
-├── src/
-│   ├── telegram-widget.js   ← main Lit component (~500 lines)
-│   └── index.css            ← minimal global reset
-├── public/
-│   └── manifest.json
-├── index.html
-├── package.json
-├── Dockerfile               ← identical pattern to postmoogle
-├── .gitignore
-└── .env.example             ← documents the 2 env vars
+Browser  or  Element Web (iframe)
+   └── telegram-bridge-widget
+         └── fetch() → /_matrix/provision/v3/...
+               └── mautrix-telegram bridge (Railway)   ← no helper service in the middle
 ```
+
+---
+
+## How the Login Wizard Works Now
+
+The bridge can grow or change its login steps in the future. To stay safe, the widget does **not** hard-code "phone, then code, then password". Instead it is **generic**: it just follows whatever steps the bridge sends back. This is called a *step engine*.
+
+The flow is:
+
+1. **Get the methods.** `GET /login/flows` returns the list: phone, QR code, bot token. The widget shows them as buttons.
+2. **Start one method.** When the user clicks a method, the widget calls `POST /login/start/{method}`. The bridge replies with the first **step**.
+3. **Follow the steps.** Every step has a `type`. The widget reads the type and shows the right screen:
+   - `user_input` → show one text box for each field the bridge asks for (for example a phone number, a code, or a 2FA password). Field types like `phone_number`, `password`, and `2fa_code` choose the right input style.
+   - `display_and_wait` → show a **QR code** (drawn from the data the bridge sends) and wait for the user to scan it with their phone.
+   - `complete` → login is done. The widget refreshes the status and goes back to Home.
+4. **Send the answer.** For input steps the widget calls `POST /login/step/{loginId}/{stepId}/{type}` with the values. The bridge then sends the next step, and the loop repeats until `complete`.
+
+Because of this design, **all three methods use the same code**. If the bridge adds a new field later, the widget will still show it correctly.
+
+---
+
+## How the User Is Detected (Browser and Element)
+
+Every bridge call needs to know *which* Matrix user is asking (`?user_id=...`). The widget finds this in four ways, in order:
+
+1. **URL parameter** — `?user_id=@me:server.com` if it is in the address.
+2. **Element Widget API** — when the widget runs inside Element, it asks Element for an OpenID token and learns the user from it. (The widget waits for the Element "ready" event first, so this does not fail.)
+3. **Saved value** — if the user typed their Matrix ID before, it is saved in `localStorage` and reused.
+4. **Ask once** — if nothing is found (a plain browser, first time), the widget shows a small form to type the Matrix ID. It then saves it for next time.
+
+This is why the widget works the same in Element and in a normal browser.
+
+> When you open the widget outside Element, the console shows a line like *"Not ready or unknown widget ID"*. This is **normal and harmless** — it just means Element is not there to answer. Any `contentscript.js` warnings come from browser extensions (like MetaMask) and are not from this widget.
 
 ---
 
@@ -91,82 +130,60 @@ Copy `.env.example` to `.env` and fill in both values:
 cp .env.example .env
 ```
 
-| Variable                     | Description                                                                | Example                                         |
-| ---------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
-| `VITE_BRIDGE_URL`          | Public URL of your mautrix-telegram bridge (no trailing slash)             | `https://mautrix-telegram-xyz.up.railway.app` |
-| `VITE_PROVISIONING_SECRET` | The `provisioning.shared_secret` value from the bridge's `config.yaml` | `abc123...`                                   |
+| Variable | Description | Example |
+| --- | --- | --- |
+| `VITE_BRIDGE_URL` | Public URL of your mautrix-telegram bridge (no trailing slash) | `https://mautrix-telegram-xyz.up.railway.app` |
+| `VITE_PROVISIONING_SECRET` | The `provisioning.shared_secret` from the bridge `config.yaml` | `abc123...` |
+
+> `VITE_BRIDGE_URL` points **straight to the bridge**. There is no helper service to point at.
 
 ### Finding the provisioning secret
 
-The bridge config has `shared_secret: generate` by default, which means the bridge auto-generates a random secret on first run. To get its value:
-
-**Option A — Read from the running container:**
-
 ```bash
-# On Railway, open a shell into the mautrix-telegram service and run:
+# On Railway, open a shell in the mautrix-telegram service and run:
 grep shared_secret /etc/mautrix-telegram/config.yaml
 ```
 
-**Option B — Set a fixed secret yourself:**
-
-In your bridge's `config.yaml` (or Railway env vars), replace `generate` with a value of your choice:
-
-```yaml
-provisioning:
-    shared_secret: "my-fixed-secret-value"
-```
-
-Then use that same value as `VITE_PROVISIONING_SECRET`.
+Or set a fixed value yourself in the bridge config and use the same value here.
 
 ---
 
 ## Local Development
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (now includes qrcode)
 npm install
 
 # 2. Create your .env file
 cp .env.example .env
-# Edit .env with your bridge URL and provisioning secret
+# edit .env with your bridge URL and secret
 
 # 3. Start the dev server
 npm run dev
 ```
 
-The widget will be available at `http://localhost:5173`.
+The widget runs at `http://localhost:5173`.
 
-> **Note:** When running outside Element Web, the Matrix Widget API will log a warning — this is expected. All bridge API calls still work normally for development and testing.
+To test fast without a Telegram account, open the widget and type the Matrix ID of a user that is **already** connected. You should see the green **Connected** badge, the profile, and the contact list under **My Chats**.
 
 ---
 
 ## Production Build
 
 ```bash
-npm run build
-# Output goes to dist/
-```
-
-Preview the production build locally:
-
-```bash
-npm run preview
+npm run build      # output goes to dist/
+npm run preview    # check the build locally
 ```
 
 ---
 
 ## Docker Deployment (Railway)
 
-The Dockerfile uses a two-stage build:
-
-1. **Builder** — Node 20 installs dependencies and runs `npm run build`
-2. **Runtime** — serves the `dist/` folder using the `serve` package on `$PORT`
+The Dockerfile uses a two-stage build: Node 20 builds the app, then `serve` serves the `dist/` folder on `$PORT`.
 
 ```bash
-# Build the image
 docker build -t telegram-bridge-widget .
 
-# Run locally
 docker run -p 3000:3000 \
   -e PORT=3000 \
   -e VITE_BRIDGE_URL=https://your-bridge.railway.app \
@@ -174,48 +191,56 @@ docker run -p 3000:3000 \
   telegram-bridge-widget
 ```
 
-> On Railway, set `VITE_BRIDGE_URL` and `VITE_PROVISIONING_SECRET` as environment variables in the service settings. Railway automatically provides `PORT`.
+On Railway, set `VITE_BRIDGE_URL` and `VITE_PROVISIONING_SECRET` as service variables. Railway gives `PORT` automatically.
 
 ---
 
 ## Adding the Widget to Element Web
 
-Once deployed, add the widget to any Matrix room (typically the bridge management room — the DM with `@telegrambot`):
-
-1. Open the room in Element Web
-2. Click **Room info** (ⓘ) → **Add widgets, bridges & bots**
-3. Select **Custom widget**
+1. Open the room in Element Web.
+2. Click **Room info** (ⓘ) → **Add widgets, bridges & bots**.
+3. Choose **Custom widget**.
 4. Fill in:
    - **Name:** `Telegram Bridge`
    - **URL:** `https://your-widget.up.railway.app`
    - **Type:** Custom
-5. Click **Add**
+5. Click **Add**.
 
-The widget will appear in the right panel of the room.
+Inside Element the user is detected automatically (no need to add `?user_id=` to the URL).
+
+---
+
+## Provisioning API Reference (correct paths)
+
+The widget uses these mautrix-go **bridgev2** endpoints. All requests send the header `Authorization: <VITE_PROVISIONING_SECRET>` and the query `?user_id=@user:server`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/_matrix/provision/v3/whoami` | Check status; read the `logins` list |
+| `GET` | `/_matrix/provision/v3/login/flows` | List login methods (phone / QR / bot) |
+| `POST` | `/_matrix/provision/v3/login/start/{flowID}` | Start one login method |
+| `POST` | `/_matrix/provision/v3/login/step/{loginID}/{stepID}/{type}` | Send a step answer (input or wait) |
+| `POST` | `/_matrix/provision/v3/login/cancel/{loginID}` | Cancel a login in progress |
+| `POST` | `/_matrix/provision/v3/logout/{loginID}` | Disconnect the Telegram account |
+| `GET` | `/_matrix/provision/v3/contacts` | List Telegram contacts (the "chats") |
+| `POST` | `/_matrix/provision/v3/search_users` | Search Telegram by a text query |
+| `GET` | `/_matrix/provision/v3/resolve_identifier/{id}` | Resolve a username/phone to a user |
+| `POST` | `/_matrix/provision/v3/create_dm/{id}` | Start a direct message with a user |
+
+> If your bridge version changes a path, edit the `API` object at the top of [src/telegram-widget.js](src/telegram-widget.js). It is the single place where all paths live.
 
 ---
 
-## Provisioning API Reference
-
-The widget uses these endpoints on the mautrix-telegram bridge:
-
-| Method     | Path                                             | Purpose                                         |
-| ---------- | ------------------------------------------------ | ----------------------------------------------- |
-| `GET`    | `/_matrix/provision/v3/whoami`                 | Check login status                              |
-| `POST`   | `/_matrix/provision/v3/login/new`              | Start Telegram login flow                       |
-| `POST`   | `/_matrix/provision/v3/login/{id}/step`        | Submit login step (phone / code / 2FA)          |
-| `DELETE` | `/_matrix/provision/v3/login/{id}`             | Cancel in-progress login                        |
-| `POST`   | `/_matrix/provision/v3/logout`                 | Disconnect Telegram account                     |
-| `GET`    | `/_matrix/provision/v3/portals`                | List bridged Telegram chats                     |
-| `GET`    | `/_matrix/provision/v3/resolve_identifier/{q}` | Resolve `@username` or phone to Telegram user |
-| `POST`   | `/_matrix/provision/v3/pm`                     | Create a DM portal with a Telegram user         |
-
-All requests are authenticated with the header:
+## Folder Structure
 
 ```
-Authorization: <VITE_PROVISIONING_SECRET>
+telegram-bridge-widget/
+├── src/
+│   └── telegram-widget.js   ← main Lit component (API paths, step engine, UI)
+├── public/
+├── index.html
+├── package.json             ← now includes the qrcode dependency
+├── Dockerfile
+├── .gitignore
+└── .env.example             ← documents the 2 env vars
 ```
-
-> **Path note:** If your bridge version uses a different base path (e.g., `v1` instead of `v3`), update the `API` constants at the top of [src/telegram-widget.js](src/telegram-widget.js).
-
----
