@@ -120,6 +120,13 @@ This is why the widget works the same in Element and in a normal browser.
 
 > When you open the widget outside Element, the console shows a line like *"Not ready or unknown widget ID"*. This is **normal and harmless** — it just means Element is not there to answer. Any `contentscript.js` warnings come from browser extensions (like MetaMask) and are not from this widget.
 
+### Working inside Element's sandbox
+
+Element runs the widget in a **sandboxed iframe** that blocks some normal browser features. The widget is built to work around this so every button works in both places:
+
+- **Disconnect** uses an in-widget confirm dialog, not `window.confirm()` (which the sandbox blocks — this was an earlier bug where the button did nothing).
+- **Opening a chat** asks Element to navigate (the `org.matrix.msc2931.navigate` capability), and falls back to a normal new tab in a plain browser, instead of `window.open()` (also blocked in the sandbox).
+
 ---
 
 ## Environment Variables

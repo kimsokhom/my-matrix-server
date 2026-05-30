@@ -37,11 +37,12 @@ export class TelegramBridgeWidget extends LitElement {
     qrDataUrl:      { type: String },   // rendered QR image for display_and_wait steps
     chats:          { type: Array },
     searchQuery:    { type: String },
-    searchResult:   { type: Object },
+    searchResults:  { type: Array },
     isLoading:      { type: Boolean },
     notification:   { type: Object },
     _needsUserId:   { type: Boolean },
     _manualUserId:  { type: String },
+    _confirmingLogout: { type: Boolean },
   };
 
   constructor() {
@@ -56,13 +57,14 @@ export class TelegramBridgeWidget extends LitElement {
     this.qrDataUrl = '';
     this.chats = [];
     this.searchQuery = '';
-    this.searchResult = null;
+    this.searchResults = [];
     this.isLoading = false;
     this.notification = { message: '', type: '' };
     this._matrixUserId = '';
     this._statusError = '';
     this._needsUserId = false;
     this._manualUserId = '';
+    this._confirmingLogout = false;
 
     // Resolves true when Element Web completes the widget handshake, false on timeout.
     // We must wait for 'ready' before calling requestOpenIDConnectToken().
@@ -70,6 +72,8 @@ export class TelegramBridgeWidget extends LitElement {
       try {
         this.widgetApi = new MatrixWidget.WidgetApi();
         this.widgetApi.once('ready', () => resolve(true));
+        // Ask Element for permission to open matrix.to links from inside the widget.
+        try { this.widgetApi.requestCapability(MatrixWidget.MatrixCapabilities.MSC2931Navigate); } catch { /* ignore */ }
         this.widgetApi.start();
         setTimeout(() => resolve(false), 2000); // not in Element Web
       } catch {
@@ -273,21 +277,30 @@ export class TelegramBridgeWidget extends LitElement {
   // open until the QR is scanned, then returns the next step. QR tokens expire, so
   // if the bridge hands back another display_and_wait we simply wait again.
   async _waitStep(step) {
+    const processId = this.loginProcessId;   // capture so a cancel can stop the loop
     try {
-      const url = API.LOGIN_STEP(this.loginProcessId, step.step_id, 'display_and_wait');
+      const url = API.LOGIN_STEP(processId, step.step_id, 'display_and_wait');
       const res = await fetch(this._u(url), {
         method: 'POST',
         headers: this._authHeaders(),
         body: '{}',
       });
+      // The user cancelled (or moved on) while we were waiting — stop quietly.
+      if (this.loginProcessId !== processId) return;
       if (!res.ok) {
-        // A timeout/refresh is normal for QR — only surface a hard error.
-        if (this.loginStep?.type === 'display_and_wait') this._waitStep(this.loginStep);
+        // A timeout/refresh is normal for a long-poll — retry after a short pause.
+        if (this.loginStep?.type === 'display_and_wait') {
+          setTimeout(() => {
+            if (this.loginProcessId === processId && this.loginStep?.type === 'display_and_wait') {
+              this._waitStep(this.loginStep);
+            }
+          }, 1500);
+        }
         return;
       }
       await this._advance(await res.json());
     } catch {
-      this._showNotification('Login timed out — try again', 'error');
+      if (this.loginProcessId === processId) this._showNotification('Login timed out — try again', 'error');
     }
   }
 
@@ -302,12 +315,22 @@ export class TelegramBridgeWidget extends LitElement {
     this._checkStatus();
   }
 
-  async _logout() {
-    if (!confirm('Disconnect your Telegram account from this bridge?')) return;
+  // Open the in-widget confirm dialog. We can't use window.confirm() because
+  // Element runs the widget in a sandboxed iframe that blocks native modals.
+  _logout() {
+    this._confirmingLogout = true;
+  }
+
+  _dismissLogout() {
+    this._confirmingLogout = false;
+  }
+
+  async _doLogout() {
     this.isLoading = true;
     try {
       const id = this.telegramUser?.login_id ?? 'all';
-      await fetch(this._u(API.LOGOUT(id)), { method: 'POST', headers: this._authHeaders() });
+      const res = await fetch(this._u(API.LOGOUT(id)), { method: 'POST', headers: this._authHeaders() });
+      if (!res.ok) { this._showNotification(`Logout failed (${res.status})`, 'error'); return; }
       this.telegramUser = null;
       this.status = 'disconnected';
       this._showNotification('Disconnected from Telegram', 'success');
@@ -315,6 +338,7 @@ export class TelegramBridgeWidget extends LitElement {
       this._showNotification('Logout failed', 'error');
     } finally {
       this.isLoading = false;
+      this._confirmingLogout = false;
     }
   }
 
@@ -336,7 +360,7 @@ export class TelegramBridgeWidget extends LitElement {
   async _searchUser() {
     if (!this.searchQuery.trim()) return;
     this.isLoading = true;
-    this.searchResult = null;
+    this.searchResults = [];
     try {
       // search_users does a network-side search by free-text query.
       const res = await fetch(this._u(API.SEARCH), {
@@ -346,10 +370,10 @@ export class TelegramBridgeWidget extends LitElement {
       });
       if (!res.ok) { this._showNotification('Search failed', 'error'); return; }
       const data = await res.json();
-      // Response may be { results: [...] } or { contacts: [...] } — take the first hit.
-      const hit = (data.results ?? data.contacts ?? data.users ?? [])[0] ?? null;
-      if (!hit) { this._showNotification('No user found', 'error'); return; }
-      this.searchResult = hit;
+      // bridgev2 returns { results: [...] }.
+      const list = data.results ?? data.contacts ?? data.users ?? [];
+      if (!list.length) { this._showNotification('No user found', 'error'); return; }
+      this.searchResults = list;
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
@@ -364,15 +388,29 @@ export class TelegramBridgeWidget extends LitElement {
         method: 'POST',
         headers: this._authHeaders(),
       });
-      if (!res.ok) { this._showNotification('Failed to open DM', 'error'); return; }
-      this._showNotification('DM room created — check your Matrix rooms!', 'success');
+      if (!res.ok) { this._showNotification('Failed to open chat', 'error'); return; }
+      const data = await res.json().catch(() => ({}));
+      const roomId = data.dm_room_mxid ?? data.room_id ?? data.room_mxid ?? data.mxid;
+      this._showNotification('Chat opened in Matrix!', 'success');
       this.searchQuery = '';
-      this.searchResult = null;
+      this.searchResults = [];
+      // Jump straight to the room (works in Element via the widget API, and in a browser tab).
+      if (roomId) this._openMatrixTo(`https://matrix.to/#/${roomId}`);
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
       this.isLoading = false;
     }
+  }
+
+  // Open a matrix.to link safely in both contexts: ask Element to navigate when
+  // embedded (window.open is blocked in its sandbox), else open a normal browser tab.
+  async _openMatrixTo(uri) {
+    const inElement = await this._widgetApiReady;
+    if (inElement) {
+      try { await this.widgetApi.navigateTo(uri); return; } catch { /* fall through */ }
+    }
+    try { window.open(uri, '_blank', 'noopener'); } catch { /* ignore */ }
   }
 
   // ─── Login step helpers ─────────────────────────────────────────────────────
@@ -454,6 +492,31 @@ export class TelegramBridgeWidget extends LitElement {
                                         this._renderSearch()}
         </main>
 
+        ${this._confirmingLogout ? this._renderLogoutConfirm() : ''}
+
+      </div>
+    `;
+  }
+
+  // In-widget confirm dialog (replaces window.confirm, which Element's sandbox blocks).
+  _renderLogoutConfirm() {
+    return html`
+      <div class="modal-overlay" @click=${this._dismissLogout}>
+        <div class="modal-card" @click=${e => e.stopPropagation()}>
+          <h2>Disconnect Telegram?</h2>
+          <p class="welcome-desc">
+            This will unlink your Telegram account from the bridge.
+            You will need to log in again to use it.
+          </p>
+          <div class="modal-actions">
+            <button class="btn-secondary" @click=${this._dismissLogout} ?disabled=${this.isLoading}>
+              Cancel
+            </button>
+            <button class="btn-danger" @click=${this._doLogout} ?disabled=${this.isLoading}>
+              ${this.isLoading ? html`<span class="spinner"></span>` : 'Disconnect'}
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -531,7 +594,7 @@ export class TelegramBridgeWidget extends LitElement {
             <span>My Chats</span>
           </button>
           <button class="action-btn"
-            @click=${() => { this.view = VIEWS.SEARCH; }}>
+            @click=${() => { this.view = VIEWS.SEARCH; this.searchQuery = ''; this.searchResults = []; }}>
             <span class="action-icon">🔍</span>
             <span>Find User</span>
           </button>
@@ -670,10 +733,10 @@ export class TelegramBridgeWidget extends LitElement {
       <div class="card">
 
         <div class="section-header">
-          <h2>Bridged Chats</h2>
+          <h2>My Telegram Chats</h2>
           <button class="btn-icon" @click=${this._fetchChats}
-            ?disabled=${this.isLoading} title="Sync chats">
-            ${this.isLoading ? html`<span class="spinner-sm"></span>` : '↺ Sync'}
+            ?disabled=${this.isLoading} title="Refresh">
+            ${this.isLoading ? html`<span class="spinner-sm"></span>` : '↺ Refresh'}
           </button>
         </div>
 
@@ -683,8 +746,8 @@ export class TelegramBridgeWidget extends LitElement {
 
         ${!this.isLoading && this.chats.length === 0 ? html`
           <div class="empty-state">
-            <p>No bridged chats yet.</p>
-            <p class="muted">Your Telegram chats appear here once the bridge syncs them.</p>
+            <p>No chats found.</p>
+            <p class="muted">Your Telegram contacts appear here once the bridge syncs them.</p>
           </div>
         ` : ''}
 
@@ -712,11 +775,9 @@ export class TelegramBridgeWidget extends LitElement {
           <p class="chat-name">${name}</p>
           ${handle ? html`<p class="chat-sub">${handle}</p>` : ''}
         </div>
-        ${chat.mxid ? html`
-          <a class="btn-open" href="https://matrix.to/#/${chat.mxid}" target="_blank">Open →</a>
-        ` : html`
-          <button class="btn-open" @click=${() => this._startDM(chat.id)} ?disabled=${this.isLoading}>DM →</button>
-        `}
+        <button class="btn-open" @click=${() => this._startDM(chat.id)} ?disabled=${this.isLoading}>
+          Open chat →
+        </button>
       </div>
     `;
   }
@@ -745,22 +806,24 @@ export class TelegramBridgeWidget extends LitElement {
           </button>
         </div>
 
-        ${this.searchResult ? html`
-          <div class="result-card">
-            <div class="chat-avatar">
-              ${(this.searchResult.name ?? this.searchResult.id ?? '?')[0].toUpperCase()}
-            </div>
-            <div class="chat-info">
-              <p class="chat-name">${this.searchResult.name ?? this.searchResult.id}</p>
-              ${(this.searchResult.identifiers?.length) ? html`
-                <p class="chat-sub">${this.searchResult.identifiers.join(' · ')}</p>
-              ` : ''}
-            </div>
-            <button class="btn-primary"
-              @click=${() => this._startDM(this.searchResult.id ?? this.searchQuery)}
-              ?disabled=${this.isLoading}>
-              ${this.isLoading ? html`<span class="spinner"></span>` : 'Start DM'}
-            </button>
+        ${this.searchResults.length ? html`
+          <div class="chat-list">
+            ${this.searchResults.map(user => html`
+              <div class="result-card">
+                <div class="chat-avatar">${(user.name ?? user.id ?? '?')[0].toUpperCase()}</div>
+                <div class="chat-info">
+                  <p class="chat-name">${user.name ?? user.id}</p>
+                  ${user.identifiers?.length ? html`
+                    <p class="chat-sub">${user.identifiers.join(' · ')}</p>
+                  ` : ''}
+                </div>
+                <button class="btn-primary"
+                  @click=${() => this._startDM(user.id ?? this.searchQuery)}
+                  ?disabled=${this.isLoading}>
+                  ${this.isLoading ? html`<span class="spinner"></span>` : 'Start DM'}
+                </button>
+              </div>
+            `)}
           </div>
         ` : ''}
 
@@ -1186,6 +1249,49 @@ export class TelegramBridgeWidget extends LitElement {
     }
 
     .btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+
+    .btn-danger {
+      background: #d32f2f;
+      color: white;
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: #b71c1c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(211,47,47,0.3);
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+      animation: fadeIn 0.15s ease;
+    }
+
+    .modal-card {
+      background: white;
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+
+    .modal-card h2 { margin-bottom: 10px; }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .modal-actions button { flex: 1; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     button:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
 
