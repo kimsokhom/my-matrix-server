@@ -1,13 +1,15 @@
 // Build-time configuration and shared constants.
 //
-// In dev, leave VITE_BRIDGE_URL empty so API paths stay relative and the Vite
-// proxy (see vite.config.js) forwards them to the bridge. In production, set
-// VITE_BRIDGE_URL to the full Railway URL of the mautrix-telegram bridge.
+// Leave VITE_BRIDGE_URL empty (the default) so API paths stay relative and hit
+// the same-origin auth proxy (server.js in prod, the Vite proxy in dev). Both
+// add the provisioning secret server-side, so it is NEVER bundled into the
+// client. Only set VITE_BRIDGE_URL if you intentionally bypass the proxy.
 export const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL ?? '';
 
-// The provisioning.shared_secret from the bridge config.yaml. Sent as the
-// bare `Authorization` header value on every provisioning request.
-export const PROVISIONING_SECRET = import.meta.env.VITE_PROVISIONING_SECRET;
+// NOTE: there is deliberately no PROVISIONING_SECRET here. A static frontend
+// cannot keep a secret. The secret lives only on the server (server.js), which
+// verifies the user's Matrix OpenID token and injects the secret + verified
+// user_id before forwarding to the bridge. See SECURITY.md.
 
 // Dev-only fallback Matrix user ID (used when not embedded in Element).
 export const DEV_MATRIX_USER_ID = import.meta.env.VITE_MATRIX_USER_ID ?? '';

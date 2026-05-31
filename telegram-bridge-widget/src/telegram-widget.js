@@ -26,7 +26,8 @@ export class TelegramBridgeWidget extends LitElement {
     searchResults:  { type: Array },
     isLoading:      { type: Boolean },
     notification:   { type: Object },
-    _needsUserId:   { type: Boolean },
+    _needsUserId:   { type: Boolean },   // dev-only: show the manual Matrix-ID prompt
+    _requiresElement: { type: Boolean }, // prod: identity needs Element (OpenID)
     _manualUserId:  { type: String },
     _confirmingLogout: { type: Boolean },
   };
@@ -50,23 +51,61 @@ export class TelegramBridgeWidget extends LitElement {
     this._matrixUserId = '';
     this._statusError = '';
     this._needsUserId = false;
+    this._requiresElement = false;
     this._manualUserId = '';
     this._confirmingLogout = false;
 
-    // The API client reads the Matrix user ID fresh on each call (it can change
-    // at runtime when the user types it manually in a plain browser).
-    this.api = new BridgeClient(() => this._matrixUserId);
+    // Cached Matrix OpenID token (issued by Element). Sent to the auth proxy,
+    // which verifies it and derives the real user_id — the secret never reaches
+    // the browser. Refreshed when it nears expiry.
+    this._openIdToken = null;
+    this._openIdServer = '';
+    this._openIdExpiresAt = 0;
+
+    // The API client authenticates via the OpenID token (getAuth). getUserId is
+    // only used in local dev, where there is no Element to issue a token and the
+    // dev proxy needs ?user_id= instead. In prod the proxy ignores client user_id.
+    this.api = new BridgeClient({
+      getAuth:   () => this._getOpenIdAuth(),
+      getUserId: () => this._matrixUserId,
+    });
+
+    // Element embeds the widget in an iframe and talks to it over postMessage. Two
+    // values are appended to the widget URL by Element and BOTH are required for the
+    // handshake to complete:
+    //   • widgetId  — identifies this widget; Element stamps it on every message.
+    //   • parentUrl — Element's own URL. Its ORIGIN is the postMessage targetOrigin
+    //                 the widget must send replies to.
+    //
+    // matrix-widget-api's WidgetApi(widgetId, clientOrigin) assigns clientOrigin to
+    // the transport's targetOrigin. If we omit it, it defaults to null, and every
+    // reply we post goes out as postMessage(msg, "null") — which never matches
+    // Element's real origin, so the browser drops all our outbound messages. Element
+    // sends its capabilities request once, never hears back, and the handshake times
+    // out (the widget then wrongly shows "Open in Element"). Passing the parentUrl
+    // origin is the fix.
+    const params = new URLSearchParams(window.location.search);
+    const widgetId = params.get('widgetId') || undefined;
+    let clientOrigin;
+    const parentUrl = params.get('parentUrl');
+    if (parentUrl) {
+      try { clientOrigin = new URL(parentUrl).origin; } catch { /* leave undefined */ }
+    }
 
     // Resolves true when Element Web completes the widget handshake, false on timeout.
     // We must wait for 'ready' before calling requestOpenIDConnectToken().
     this._widgetApiReady = new Promise((resolve) => {
       try {
-        this.widgetApi = new MatrixWidget.WidgetApi();
+        this.widgetApi = new MatrixWidget.WidgetApi(widgetId, clientOrigin);
         this.widgetApi.once('ready', () => resolve(true));
         // Ask Element for permission to open matrix.to links from inside the widget.
         try { this.widgetApi.requestCapability(MatrixWidget.MatrixCapabilities.MSC2931Navigate); } catch { /* ignore */ }
         this.widgetApi.start();
-        setTimeout(() => resolve(false), 2000); // not in Element Web
+        // Tell Element our content is loaded. Element waits for this before it
+        // sends the capabilities request that drives the handshake to 'ready';
+        // without it the handshake never starts and times out below.
+        try { this.widgetApi.sendContentLoaded(); } catch { /* ignore — not in Element */ }
+        setTimeout(() => resolve(false), 5000);
       } catch {
         resolve(false);
       }
@@ -74,6 +113,24 @@ export class TelegramBridgeWidget extends LitElement {
   }
 
   async firstUpdated() {
+    // Production: identity is established ONLY by a verified OpenID token, which
+    // the auth proxy checks server-side. No token (e.g. opened outside Element)
+    // → there is no secure way to act as anyone, so prompt the user to open it
+    // from Element instead of accepting a typed Matrix ID.
+    if (!import.meta.env.DEV) {
+      const auth = await this._getOpenIdAuth();
+      if (!auth) {
+        this._requiresElement = true;
+        this.status = 'disconnected';
+        return;
+      }
+      await this._checkStatus();
+      return;
+    }
+
+    // Local dev: there is no Element host to issue an OpenID token, so fall back
+    // to a manually-entered / configured Matrix ID. The dev Vite proxy injects
+    // the secret. This path is compiled out of production builds.
     this._matrixUserId = await this._resolveUserId();
     if (!this._matrixUserId) {
       this._needsUserId = true;
@@ -83,32 +140,37 @@ export class TelegramBridgeWidget extends LitElement {
     await this._checkStatus();
   }
 
-  // Resolves the Matrix user ID from four sources in priority order:
-  // 1. ?user_id= URL param  (Element Web template substitution)
-  // 2. Widget API OpenID    (waits for 'ready' event — works when embedded in Element Web)
-  // 3. localStorage         (persisted from a previous manual entry — works for any browser user)
-  // 4. VITE_MATRIX_USER_ID (dev-only build-time fallback)
+  // Returns a verified-by-the-homeserver OpenID token { token, server } when the
+  // widget is embedded in Element, or null otherwise. The token is cached and
+  // only refreshed near expiry so we don't re-prompt / re-fetch on every call.
+  async _getOpenIdAuth() {
+    const ready = await this._widgetApiReady;   // false when not in Element
+    if (!ready) return null;
+
+    const now = Date.now();
+    if (this._openIdToken && this._openIdExpiresAt > now + 5000) {
+      return { token: this._openIdToken, server: this._openIdServer };
+    }
+
+    try {
+      const t = await this.widgetApi.requestOpenIDConnectToken();
+      if (t?.access_token && t?.matrix_server_name) {
+        this._openIdToken = t.access_token;
+        this._openIdServer = t.matrix_server_name;
+        // expires_in is in seconds; default to 1 hour if the host omits it.
+        this._openIdExpiresAt = now + ((t.expires_in ?? 3600) * 1000);
+        return { token: this._openIdToken, server: this._openIdServer };
+      }
+    } catch { /* token request failed or was declined → treat as no identity */ }
+    return null;
+  }
+
+  // Dev-only: resolve a Matrix user ID from the URL param, localStorage, or the
+  // build-time fallback. In production, identity comes from the verified OpenID
+  // token (see _getOpenIdAuth + server.js), never from a typed/stored ID.
   async _resolveUserId() {
     const fromUrl = new URLSearchParams(location.search).get('user_id');
     if (fromUrl) return fromUrl;
-
-    // Wait for the Widget API handshake before requesting OpenID token.
-    // Without waiting, this always fails with "Not ready or unknown widget ID".
-    const ready = await this._widgetApiReady;
-    if (ready) {
-      try {
-        const token = await this.widgetApi.requestOpenIDConnectToken();
-        if (token?.access_token && token?.matrix_server_name) {
-          const res = await fetch(
-            `https://${token.matrix_server_name}/_matrix/federation/v1/openid/userinfo?access_token=${token.access_token}`
-          );
-          if (res.ok) {
-            const { sub } = await res.json();
-            if (sub) return sub;
-          }
-        }
-      } catch { /* OpenID failed — fall through */ }
-    }
 
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved;
@@ -473,7 +535,8 @@ export class TelegramBridgeWidget extends LitElement {
         ` : ''}
 
         <main>
-          ${this._needsUserId         ? this._renderUserIdPrompt() :
+          ${this._requiresElement     ? this._renderOpenInElement() :
+            this._needsUserId         ? this._renderUserIdPrompt() :
             this.view === VIEWS.HOME  ? this._renderHome()   :
             this.view === VIEWS.LOGIN ? this._renderLogin()  :
             this.view === VIEWS.CONTACTS ? this._renderContacts()  :
@@ -524,7 +587,25 @@ export class TelegramBridgeWidget extends LitElement {
     `;
   }
 
-  // ─── Matrix ID prompt (browser direct access) ───────────────────────────────
+  // ─── "Open in Element" (production, opened outside Element) ──────────────────
+  // Shown when there is no verified OpenID identity. We deliberately do NOT offer
+  // a "type your Matrix ID" box here: without Element vouching for the user, that
+  // would let anyone act as any account. Identity must come from Element.
+  _renderOpenInElement() {
+    return html`
+      <div class="card center-card">
+        <div class="welcome-icon">${ICONS.send}</div>
+        <h2>Open in Element</h2>
+        <p class="welcome-desc">
+          For your security, this widget confirms who you are through Element.
+          Please open it from your Telegram bridge room in Element to connect
+          and manage your account.
+        </p>
+      </div>
+    `;
+  }
+
+  // ─── Matrix ID prompt (dev-only direct browser access) ───────────────────────
 
   _renderUserIdPrompt() {
     return html`

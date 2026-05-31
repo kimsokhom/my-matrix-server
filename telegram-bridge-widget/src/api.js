@@ -1,4 +1,4 @@
-import { BRIDGE_URL, PROVISIONING_SECRET } from './config.js';
+import { BRIDGE_URL } from './config.js';
 
 // Provisioning API endpoint paths (mautrix-go bridgev2 contract).
 // Login is nested under /login/flows, /login/start/{flow},
@@ -19,21 +19,30 @@ export const API = {
 
 // Thin client over the bridge provisioning API.
 //
-// It owns the two cross-cutting concerns that every call needs: the shared
-// secret in the Authorization header, and the ?user_id= query param. The
-// Matrix user ID can change at runtime (manual entry in a browser), so the
-// client reads it fresh on each call via the `getUserId` function it is given.
+// Authentication is handled by the same-origin auth proxy (server.js), not by
+// this client. The client never holds the provisioning secret. Instead it sends
+// the user's Matrix OpenID token as `Authorization: Bearer <token>` (plus the
+// server name); the proxy verifies it, derives the real user_id, injects the
+// secret, and forwards to the bridge.
 //
-// Every method resolves to { ok, status, data } so the caller keeps its
-// existing branching (e.g. the 403 special-case in _checkStatus) unchanged.
+// It is constructed with two callbacks:
+//   getAuth():   async () => { token, server } | null   — OpenID token (Element)
+//   getUserId(): ()       => string                     — only used in local dev,
+//     where there is no Element host to issue an OpenID token, so the dev Vite
+//     proxy (which injects the secret) still needs ?user_id= to know the user.
+//     In production the proxy ignores any client user_id and uses the verified one.
+//
+// Every method resolves to { ok, status, data }.
 export class BridgeClient {
+  #getAuth;
   #getUserId;
 
-  constructor(getUserId) {
-    this.#getUserId = getUserId;
+  constructor({ getAuth, getUserId } = {}) {
+    this.#getAuth = getAuth ?? (async () => null);
+    this.#getUserId = getUserId ?? (() => '');
   }
 
-  // Append ?user_id=... (or &user_id=...) to a URL.
+  // Append ?user_id=... (dev only; harmless in prod — the proxy overrides it).
   #withUser(url) {
     const userId = this.#getUserId();
     if (!userId) return url;
@@ -41,11 +50,14 @@ export class BridgeClient {
     return `${url}${sep}user_id=${encodeURIComponent(userId)}`;
   }
 
-  #headers() {
-    return {
-      'Authorization': PROVISIONING_SECRET,
-      'Content-Type': 'application/json',
-    };
+  async #headers() {
+    const headers = { 'Content-Type': 'application/json' };
+    const auth = await this.#getAuth();
+    if (auth?.token && auth?.server) {
+      headers['Authorization'] = `Bearer ${auth.token}`;
+      headers['X-Matrix-Server-Name'] = auth.server;
+    }
+    return headers;
   }
 
   // Core request: returns { ok, status, data }. `data` is the parsed JSON body
@@ -54,7 +66,7 @@ export class BridgeClient {
   async #request(url, { method = 'GET', body } = {}) {
     const res = await fetch(this.#withUser(url), {
       method,
-      headers: this.#headers(),
+      headers: await this.#headers(),
       ...(body !== undefined ? { body } : {}),
     });
     const data = await res.json().catch(() => ({}));

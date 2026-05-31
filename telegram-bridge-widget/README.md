@@ -112,16 +112,27 @@ Because of this design, **all three methods use the same code**. If the bridge a
 
 ---
 
-## How the User Is Detected (Browser and Element)
+## How the User Is Identified (and why it's secure)
 
-Every bridge call needs to know *which* Matrix user is asking (`?user_id=...`). The widget finds this in four ways, in order:
+> Full details in [SECURITY.md](./SECURITY.md). Short version below.
 
-1. **URL parameter** — `?user_id=@me:server.com` if it is in the address.
-2. **Element Widget API** — when the widget runs inside Element, it asks Element for an OpenID token and learns the user from it. (The widget waits for the Element "ready" event first, so this does not fail.)
-3. **Saved value** — if the user typed their Matrix ID before, it is saved in `localStorage` and reused.
-4. **Ask once** — if nothing is found (a plain browser, first time), the widget shows a small form to type the Matrix ID. It then saves it for next time.
+The widget never holds the provisioning secret and never decides *which* Matrix
+user it acts as. A same-origin **auth proxy** (`server.js`) does both:
 
-This is why the widget works the same in Element and in a normal browser.
+1. **In production (inside Element)** — the widget asks Element for a **Matrix
+   OpenID token** and sends it to the proxy. The proxy verifies the token against
+   the homeserver, derives the real `user_id` from it, injects the secret, and
+   forwards to the bridge. A client **cannot** specify someone else's `user_id` —
+   the proxy ignores it and uses the verified one. This blocks impersonation.
+2. **Opened outside Element (production)** — there is no verified identity, so the
+   widget shows an **"Open in Element"** message. It does *not* accept a typed
+   Matrix ID (that would be unauthenticated).
+3. **Local development** — there is no Element host to issue a token, so dev falls
+   back to a manually-entered Matrix ID and the Vite dev proxy (which injects the
+   secret server-side). This path is **compiled out of production builds**.
+
+To use a different account, log into Element as that account — the widget follows
+automatically. There is intentionally no in-widget account switcher.
 
 > When you open the widget outside Element, the console shows a line like *"Not ready or unknown widget ID"*. This is **normal and harmless** — it just means Element is not there to answer. Any `contentscript.js` warnings come from browser extensions (like MetaMask) and are not from this widget.
 
@@ -136,18 +147,23 @@ Element runs the widget in a **sandboxed iframe** that blocks some normal browse
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in both values:
+Copy `.env.example` to `.env` and fill it in:
 
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description | Example |
-| --- | --- | --- |
-| `VITE_BRIDGE_URL` | Public URL of your mautrix-telegram bridge (no trailing slash) | `https://mautrix-telegram-xyz.up.railway.app` |
-| `VITE_PROVISIONING_SECRET` | The `provisioning.shared_secret` from the bridge `config.yaml` | `abc123...` |
+| Variable | Side | Description | Example |
+| --- | --- | --- | --- |
+| `VITE_BRIDGE_URL` | client | Leave **empty** so the client calls the same-origin proxy. | *(empty)* |
+| `PROVISIONING_SECRET` | **server** | The `provisioning.shared_secret` from the bridge `config.yaml`. Never bundled into the client. | `abc123...` |
+| `BRIDGE_INTERNAL_URL` | **server** | Bridge URL the proxy forwards to — use the **private** network URL. | `http://mautrix-telegram.railway.internal:29317` |
+| `HOMESERVER_NAME` | **server** | Homeserver to verify OpenID tokens against (also pinned). | `synapse-….up.railway.app` |
+| `VITE_MATRIX_USER_ID` | client (dev) | Dev-only fallback Matrix ID; ignored in production. | `@you:server.com` |
 
-> `VITE_BRIDGE_URL` points **straight to the bridge**. There is no helper service to point at.
+> Note the `VITE_` prefix: only those variables are compiled into the browser
+> bundle. `PROVISIONING_SECRET` has **no** prefix on purpose, so it stays
+> server-side. See [SECURITY.md](./SECURITY.md).
 
 ### Finding the provisioning secret
 
@@ -191,19 +207,25 @@ npm run preview    # check the build locally
 
 ## Docker Deployment (Railway)
 
-The Dockerfile uses a two-stage build: Node 20 builds the app, then `serve` serves the `dist/` folder on `$PORT`.
+The Dockerfile uses a two-stage build: Node 20 builds the static bundle, then the
+runtime stage runs the **auth proxy** (`server.js`), which serves `dist/` *and*
+verifies/forwards provisioning calls on `$PORT`.
 
 ```bash
 docker build -t telegram-bridge-widget .
 
-docker run -p 3000:3000 \
-  -e PORT=3000 \
-  -e VITE_BRIDGE_URL=https://your-bridge.railway.app \
-  -e VITE_PROVISIONING_SECRET=your-secret \
+docker run -p 8080:8080 \
+  -e PORT=8080 \
+  -e PROVISIONING_SECRET=your-secret \
+  -e BRIDGE_INTERNAL_URL=http://mautrix-telegram.railway.internal:29317 \
+  -e HOMESERVER_NAME=synapse-….up.railway.app \
   telegram-bridge-widget
 ```
 
-On Railway, set `VITE_BRIDGE_URL` and `VITE_PROVISIONING_SECRET` as service variables. Railway gives `PORT` automatically.
+On Railway, set `PROVISIONING_SECRET`, `BRIDGE_INTERNAL_URL`, and `HOMESERVER_NAME`
+as service variables (leave `VITE_BRIDGE_URL` empty). Railway gives `PORT`
+automatically. **Important:** keep the bridge's provisioning endpoint on the
+private network only — see [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -224,7 +246,7 @@ Inside Element the user is detected automatically (no need to add `?user_id=` to
 
 ## Provisioning API Reference (correct paths)
 
-The widget uses these mautrix-go **bridgev2** endpoints. All requests send the header `Authorization: <VITE_PROVISIONING_SECRET>` and the query `?user_id=@user:server`.
+The widget uses these mautrix-go **bridgev2** endpoints. The browser calls them on the same origin (`/_matrix/provision/*`) and sends a Matrix OpenID token (`Authorization: Bearer <token>` + `X-Matrix-Server-Name`). The auth proxy verifies the token, then forwards to the bridge with `Authorization: <PROVISIONING_SECRET>` and the **verified** `?user_id=@user:server`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
