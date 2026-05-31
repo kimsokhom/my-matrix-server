@@ -12,6 +12,12 @@ export const PROVISIONING_SECRET = import.meta.env.VITE_PROVISIONING_SECRET;
 // Dev-only fallback Matrix user ID (used when not embedded in Element).
 export const DEV_MATRIX_USER_ID = import.meta.env.VITE_MATRIX_USER_ID ?? '';
 
+// Base URL of your own hosted Element Web. Used only when the widget runs in a
+// plain browser tab (not embedded in Element): "Open chat" / "Start DM" then
+// deep-links into YOUR Element instance instead of the generic public matrix.to
+// page. Leave empty to fall back to matrix.to. No trailing slash.
+export const ELEMENT_BASE_URL = import.meta.env.VITE_ELEMENT_BASE_URL ?? '';
+
 // The screens the widget can show.
 export const VIEWS = {
   HOME:     'home',

@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import * as MatrixWidget from 'matrix-widget-api';
 import QRCode from 'qrcode';
 
-import { VIEWS, STORAGE_KEY, DEV_MATRIX_USER_ID } from './config.js';
+import { VIEWS, STORAGE_KEY, DEV_MATRIX_USER_ID, ELEMENT_BASE_URL } from './config.js';
 import { BridgeClient } from './api.js';
 import { ICONS } from './icons.js';
 import { styles } from './styles.js';
@@ -340,12 +340,18 @@ export class TelegramBridgeWidget extends LitElement {
     try {
       const { ok, data } = await this.api.createDm(identifier);
       if (!ok) { this._showNotification('Failed to open chat', 'error'); return; }
-      const roomId = data.dm_room_mxid ?? data.room_id ?? data.room_mxid ?? data.mxid;
-      this._showNotification('Chat opened in Matrix!', 'success');
+      // bridgev2 may name the room field differently across versions.
+      const roomId = data.dm_room_mxid ?? data.room_id ?? data.room_mxid
+                   ?? data.mxid ?? data.room?.id;
       this.searchQuery = '';
       this.searchResults = [];
-      // Jump straight to the room (works in Element via the widget API, and in a browser tab).
-      if (roomId) this._openMatrixTo(`https://matrix.to/#/${roomId}`);
+      if (roomId) {
+        await this._openRoom(roomId);
+      } else {
+        // The bridge created the DM but did not return a room id — it still
+        // shows up in the room list, so point the user there.
+        this._showNotification('Chat created — find it in your room list', 'success');
+      }
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
@@ -353,14 +359,35 @@ export class TelegramBridgeWidget extends LitElement {
     }
   }
 
-  // Open a matrix.to link safely in both contexts: ask Element to navigate when
-  // embedded (window.open is blocked in its sandbox), else open a normal browser tab.
-  async _openMatrixTo(uri) {
-    const inElement = await this._widgetApiReady;
-    if (inElement) {
-      try { await this.widgetApi.navigateTo(uri); return; } catch { /* fall through */ }
+  // Open a Matrix room from the widget.
+  async _openRoom(roomId) {
+    // Are we embedded (Element runs widgets in an iframe)? This is synchronous
+    // and always correct, unlike waiting on the widget 'ready' handshake which
+    // may have timed out by now.
+    const embedded = window.self !== window.top;
+
+    if (embedded) {
+      // Inside Element: ONLY ask the host to navigate. Never call window.open —
+      // the sandbox turns it into the external matrix.to "choose an app" page
+      // (the bad redirect). If navigation is not granted, the DM still exists
+      // in the room list, so just point the user there.
+      try {
+        await this.widgetApi.navigateTo(`https://matrix.to/#/${roomId}`);
+        this._showNotification('Opening chat…', 'success');
+      } catch {
+        this._showNotification('Chat is ready — open it from your room list.', 'success');
+      }
+      return;
     }
-    try { window.open(uri, '_blank', 'noopener'); } catch { /* ignore */ }
+
+    // Standalone browser tab. Prefer OUR own hosted Element (deep link into the
+    // user's existing homeserver session) so they don't get dumped on the public
+    // matrix.to / app.element.io page. Fall back to matrix.to only if no Element
+    // URL is configured.
+    const url = ELEMENT_BASE_URL
+      ? `${ELEMENT_BASE_URL}/#/room/${roomId}`
+      : `https://matrix.to/#/${roomId}`;
+    try { window.open(url, '_blank', 'noopener'); } catch { /* ignore */ }
   }
 
   async _cancelLogin() {

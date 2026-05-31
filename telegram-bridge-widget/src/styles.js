@@ -479,7 +479,10 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-5);
+    /* Fluid padding so the card keeps a margin from the panel edges even in a
+       narrow Element side-panel. overflow-y lets it scroll if the panel is short. */
+    padding: clamp(12px, 4vw, 24px);
+    overflow-y: auto;
     z-index: 100;
     animation: fadeIn 0.15s ease;
   }
@@ -487,9 +490,10 @@ export const styles = css`
   .modal-card {
     background: var(--c-surface);
     border-radius: var(--radius-md);
-    padding: var(--space-5);
-    max-width: 380px;
+    padding: clamp(16px, 5vw, 24px);
+    /* Never wider than the available space (minus the overlay padding). */
     width: 100%;
+    max-width: min(380px, 100%);
     box-shadow: var(--shadow-pop);
   }
 
@@ -500,7 +504,14 @@ export const styles = css`
     gap: var(--space-3);
     margin-top: var(--space-5);
   }
-  .modal-actions button { flex: 1; }
+  /* Equal-width buttons that can shrink without their labels overflowing. */
+  .modal-actions button { flex: 1 1 0; min-width: 0; }
+
+  /* Very narrow panels: stack the buttons so neither label is cramped.
+     Disconnect goes on top as the primary action. */
+  @media (max-width: 360px) {
+    .modal-actions { flex-direction: column-reverse; }
+  }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
