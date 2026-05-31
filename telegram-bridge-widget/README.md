@@ -245,14 +245,37 @@ The widget uses these mautrix-go **bridgev2** endpoints. All requests send the h
 
 ## Folder Structure
 
+The widget used to live in one large file. It is now split into small modules so it
+is easier to read, review, and maintain. The component file holds only state and UI;
+everything else has its own file.
+
 ```
 telegram-bridge-widget/
 ├── src/
-│   └── telegram-widget.js   ← main Lit component (API paths, step engine, UI)
+│   ├── config.js            ← env vars + constants (BRIDGE_URL, VIEWS, STORAGE_KEY)
+│   ├── api.js               ← API path map + BridgeClient (auth, user_id, fetch)
+│   ├── icons.js             ← modern SVG icon set (ICONS map)
+│   ├── styles.js            ← all CSS, built on design tokens (see below)
+│   └── telegram-widget.js   ← main Lit component (state, step engine, render)
 ├── public/
 ├── index.html
-├── package.json             ← now includes the qrcode dependency
+├── package.json             ← includes the qrcode dependency
 ├── Dockerfile
 ├── .gitignore
 └── .env.example             ← documents the 2 env vars
 ```
+
+### How the modules fit together
+
+- **`config.js`** — the only place build-time settings live.
+- **`api.js`** — `BridgeClient` wraps every bridge call. It adds the `Authorization`
+  secret and the `?user_id=` query for you, and returns `{ ok, status, data }` so the
+  component just checks the result. Change a path once in the `API` map if the bridge
+  version changes.
+- **`icons.js`** — clean outline SVG icons that inherit color from CSS (`currentColor`).
+- **`styles.js`** — all styling. It starts with **design tokens** (CSS custom
+  properties for spacing, radius, color, type, and shadow). Change a token once and the
+  whole UI updates. The layout is responsive (the action buttons reflow on small
+  screens), has keyboard focus rings, and respects the user's reduced-motion setting.
+- **`telegram-widget.js`** — imports the four files above and contains only the widget
+  logic and the screens (Home, Login wizard, Contacts, Search).

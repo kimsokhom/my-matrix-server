@@ -1,50 +1,15 @@
-import { LitElement, html, css, svg } from 'lit';
+import { LitElement, html } from 'lit';
 import * as MatrixWidget from 'matrix-widget-api';
 import QRCode from 'qrcode';
 
-// In dev, leave VITE_BRIDGE_URL empty so paths are relative — Vite proxy forwards them.
-// In production, set VITE_BRIDGE_URL to the full Railway URL.
-const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL ?? '';
-const PROVISIONING_SECRET = import.meta.env.VITE_PROVISIONING_SECRET;
-
-// Provisioning API endpoint paths (mautrix-go bridgev2 contract).
-// Login is nested under /login/flows, /login/start/{flow}, /login/step/{id}/{stepId}/{type}.
-const API = {
-  WHOAMI:       `${BRIDGE_URL}/_matrix/provision/v3/whoami`,
-  LOGIN_FLOWS:  `${BRIDGE_URL}/_matrix/provision/v3/login/flows`,
-  LOGIN_START:  (flowId)            => `${BRIDGE_URL}/_matrix/provision/v3/login/start/${encodeURIComponent(flowId)}`,
-  LOGIN_STEP:   (id, stepId, type)  => `${BRIDGE_URL}/_matrix/provision/v3/login/step/${encodeURIComponent(id)}/${encodeURIComponent(stepId)}/${type}`,
-  LOGIN_CANCEL: (id)                => `${BRIDGE_URL}/_matrix/provision/v3/login/cancel/${encodeURIComponent(id)}`,
-  LOGOUT:       (id)                => `${BRIDGE_URL}/_matrix/provision/v3/logout/${encodeURIComponent(id)}`,
-  CONTACTS:     `${BRIDGE_URL}/_matrix/provision/v3/contacts`,
-  SEARCH:       `${BRIDGE_URL}/_matrix/provision/v3/search_users`,
-  RESOLVE:      (q)                 => `${BRIDGE_URL}/_matrix/provision/v3/resolve_identifier/${encodeURIComponent(q)}`,
-  CREATE_DM:    (id)                => `${BRIDGE_URL}/_matrix/provision/v3/create_dm/${encodeURIComponent(id)}`,
-};
-
-const VIEWS = { HOME: 'home', LOGIN: 'login', CONTACTS: 'contacts', SEARCH: 'search' };
-
-// Modern outline icons (Lucide/Feather style), inline so there is no extra dependency.
-// They inherit color via `currentColor` and are sized per-holder in CSS.
-const svgIcon = (inner) => html`
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    ${inner}
-  </svg>`;
-
-const ICONS = {
-  send:        svgIcon(svg`<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>`),
-  users:       svgIcon(svg`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`),
-  search:      svgIcon(svg`<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`),
-  logout:      svgIcon(svg`<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>`),
-  smartphone:  svgIcon(svg`<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>`),
-  qrCode:      svgIcon(svg`<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="20" x2="14" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="21" y1="17" x2="21" y2="21"/><line x1="17" y1="21" x2="18" y2="21"/>`),
-  bot:         svgIcon(svg`<path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>`),
-  refresh:     svgIcon(svg`<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`),
-  chevronLeft: svgIcon(svg`<polyline points="15 18 9 12 15 6"/>`),
-};
+import { VIEWS, STORAGE_KEY, DEV_MATRIX_USER_ID } from './config.js';
+import { BridgeClient } from './api.js';
+import { ICONS } from './icons.js';
+import { styles } from './styles.js';
 
 export class TelegramBridgeWidget extends LitElement {
+
+  static styles = styles;
 
   static properties = {
     view:           { type: String },
@@ -85,6 +50,10 @@ export class TelegramBridgeWidget extends LitElement {
     this._needsUserId = false;
     this._manualUserId = '';
     this._confirmingLogout = false;
+
+    // The API client reads the Matrix user ID fresh on each call (it can change
+    // at runtime when the user types it manually in a plain browser).
+    this.api = new BridgeClient(() => this._matrixUserId);
 
     // Resolves true when Element Web completes the widget handshake, false on timeout.
     // We must wait for 'ready' before calling requestOpenIDConnectToken().
@@ -139,10 +108,10 @@ export class TelegramBridgeWidget extends LitElement {
       } catch { /* OpenID failed — fall through */ }
     }
 
-    const saved = localStorage.getItem('telegram_widget_user_id');
+    const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved;
 
-    return import.meta.env.VITE_MATRIX_USER_ID ?? '';
+    return DEV_MATRIX_USER_ID;
   }
 
   async _confirmUserId() {
@@ -151,42 +120,27 @@ export class TelegramBridgeWidget extends LitElement {
       this._showNotification('Enter a valid Matrix ID like @user:server.com', 'error');
       return;
     }
-    localStorage.setItem('telegram_widget_user_id', id);
+    localStorage.setItem(STORAGE_KEY, id);
     this._matrixUserId = id;
     this._needsUserId = false;
     await this._checkStatus();
   }
 
-  // Appends ?user_id=... to a provisioning API URL.
-  _u(url) {
-    if (!this._matrixUserId) return url;
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}user_id=${encodeURIComponent(this._matrixUserId)}`;
-  }
-
-  // ─── API helpers ────────────────────────────────────────────────────────────
-
-  _authHeaders() {
-    return {
-      'Authorization': PROVISIONING_SECRET,
-      'Content-Type': 'application/json',
-    };
-  }
+  // ─── API-backed actions ───────────────────────────────────────────────────────
 
   async _checkStatus() {
     this.status = 'checking';
     this._statusError = '';
     try {
-      const res = await fetch(this._u(API.WHOAMI), { headers: this._authHeaders() });
-      if (res.status === 403) {
+      const { ok, status, data } = await this.api.whoami();
+      if (status === 403) {
         this._statusError = '403 — Wrong provisioning secret or missing user ID.';
         this.status = 'error'; return;
       }
-      if (!res.ok) {
-        this._statusError = `Bridge returned ${res.status}.`;
+      if (!ok) {
+        this._statusError = `Bridge returned ${status}.`;
         this.status = 'error'; return;
       }
-      const data = await res.json();
       // bridgev2 whoami returns a `logins` array. One or more entries = connected.
       const login = data.logins?.[0];
       if (login) {
@@ -215,13 +169,12 @@ export class TelegramBridgeWidget extends LitElement {
     this.loginProcessId = null;
     this.view = VIEWS.LOGIN;
     try {
-      const res = await fetch(this._u(API.LOGIN_FLOWS), { headers: this._authHeaders() });
-      if (!res.ok) {
-        this._showNotification(`Bridge returned ${res.status} on GET /login/flows`, 'error');
+      const { ok, status, data } = await this.api.loginFlows();
+      if (!ok) {
+        this._showNotification(`Bridge returned ${status} on GET /login/flows`, 'error');
         this.view = VIEWS.HOME;
         return;
       }
-      const data = await res.json();
       this.loginFlows = data.flows ?? [];
     } catch {
       this._showNotification('Could not reach the bridge. Check VITE_BRIDGE_URL.', 'error');
@@ -235,16 +188,12 @@ export class TelegramBridgeWidget extends LitElement {
   async _beginFlow(flowId) {
     this.isLoading = true;
     try {
-      const res = await fetch(this._u(API.LOGIN_START(flowId)), {
-        method: 'POST',
-        headers: this._authHeaders(),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        this._showNotification(err.error ?? `Failed to start login (${res.status})`, 'error');
+      const { ok, status, data } = await this.api.startLogin(flowId);
+      if (!ok) {
+        this._showNotification(data.error ?? `Failed to start login (${status})`, 'error');
         return;
       }
-      await this._advance(await res.json());
+      await this._advance(data);
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
@@ -274,18 +223,14 @@ export class TelegramBridgeWidget extends LitElement {
   async _submitUserInput() {
     this.isLoading = true;
     try {
-      const url = API.LOGIN_STEP(this.loginProcessId, this.loginStep.step_id, 'user_input');
-      const res = await fetch(this._u(url), {
-        method: 'POST',
-        headers: this._authHeaders(),
-        body: JSON.stringify(this.stepInputs),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        this._showNotification(err.error ?? 'Invalid input — try again', 'error');
+      const { ok, data } = await this.api.submitStep(
+        this.loginProcessId, this.loginStep.step_id, 'user_input', JSON.stringify(this.stepInputs)
+      );
+      if (!ok) {
+        this._showNotification(data.error ?? 'Invalid input — try again', 'error');
         return;
       }
-      await this._advance(await res.json());
+      await this._advance(data);
     } catch {
       this._showNotification('Connection failed', 'error');
     } finally {
@@ -299,15 +244,10 @@ export class TelegramBridgeWidget extends LitElement {
   async _waitStep(step) {
     const processId = this.loginProcessId;   // capture so a cancel can stop the loop
     try {
-      const url = API.LOGIN_STEP(processId, step.step_id, 'display_and_wait');
-      const res = await fetch(this._u(url), {
-        method: 'POST',
-        headers: this._authHeaders(),
-        body: '{}',
-      });
+      const { ok, data } = await this.api.submitStep(processId, step.step_id, 'display_and_wait', '{}');
       // The user cancelled (or moved on) while we were waiting — stop quietly.
       if (this.loginProcessId !== processId) return;
-      if (!res.ok) {
+      if (!ok) {
         // A timeout/refresh is normal for a long-poll — retry after a short pause.
         if (this.loginStep?.type === 'display_and_wait') {
           setTimeout(() => {
@@ -318,7 +258,7 @@ export class TelegramBridgeWidget extends LitElement {
         }
         return;
       }
-      await this._advance(await res.json());
+      await this._advance(data);
     } catch {
       if (this.loginProcessId === processId) this._showNotification('Login timed out — try again', 'error');
     }
@@ -349,8 +289,8 @@ export class TelegramBridgeWidget extends LitElement {
     this.isLoading = true;
     try {
       const id = this.telegramUser?.login_id ?? 'all';
-      const res = await fetch(this._u(API.LOGOUT(id)), { method: 'POST', headers: this._authHeaders() });
-      if (!res.ok) { this._showNotification(`Logout failed (${res.status})`, 'error'); return; }
+      const { ok, status } = await this.api.logout(id);
+      if (!ok) { this._showNotification(`Logout failed (${status})`, 'error'); return; }
       this.telegramUser = null;
       this.status = 'disconnected';
       this._showNotification('Disconnected from Telegram', 'success');
@@ -366,9 +306,8 @@ export class TelegramBridgeWidget extends LitElement {
     this.isLoading = true;
     this.contacts = [];
     try {
-      const res = await fetch(this._u(API.CONTACTS), { headers: this._authHeaders() });
-      if (!res.ok) { this._showNotification('Failed to load contacts', 'error'); return; }
-      const data = await res.json();
+      const { ok, data } = await this.api.contacts();
+      if (!ok) { this._showNotification('Failed to load contacts', 'error'); return; }
       this.contacts = data.contacts ?? [];
     } catch {
       this._showNotification('Connection failed', 'error');
@@ -383,13 +322,8 @@ export class TelegramBridgeWidget extends LitElement {
     this.searchResults = [];
     try {
       // search_users does a network-side search by free-text query.
-      const res = await fetch(this._u(API.SEARCH), {
-        method: 'POST',
-        headers: this._authHeaders(),
-        body: JSON.stringify({ query: this.searchQuery.trim() }),
-      });
-      if (!res.ok) { this._showNotification('Search failed', 'error'); return; }
-      const data = await res.json();
+      const { ok, data } = await this.api.search(this.searchQuery.trim());
+      if (!ok) { this._showNotification('Search failed', 'error'); return; }
       // bridgev2 returns { results: [...] }.
       const list = data.results ?? data.contacts ?? data.users ?? [];
       if (!list.length) { this._showNotification('No user found', 'error'); return; }
@@ -404,12 +338,8 @@ export class TelegramBridgeWidget extends LitElement {
   async _startDM(identifier) {
     this.isLoading = true;
     try {
-      const res = await fetch(this._u(API.CREATE_DM(identifier)), {
-        method: 'POST',
-        headers: this._authHeaders(),
-      });
-      if (!res.ok) { this._showNotification('Failed to open chat', 'error'); return; }
-      const data = await res.json().catch(() => ({}));
+      const { ok, data } = await this.api.createDm(identifier);
+      if (!ok) { this._showNotification('Failed to open chat', 'error'); return; }
       const roomId = data.dm_room_mxid ?? data.room_id ?? data.room_mxid ?? data.mxid;
       this._showNotification('Chat opened in Matrix!', 'success');
       this.searchQuery = '';
@@ -431,6 +361,18 @@ export class TelegramBridgeWidget extends LitElement {
       try { await this.widgetApi.navigateTo(uri); return; } catch { /* fall through */ }
     }
     try { window.open(uri, '_blank', 'noopener'); } catch { /* ignore */ }
+  }
+
+  async _cancelLogin() {
+    if (this.loginProcessId) {
+      try { await this.api.cancelLogin(this.loginProcessId); } catch { /* best-effort cancel */ }
+    }
+    this.loginFlows = null;
+    this.loginProcessId = null;
+    this.loginStep = null;
+    this.stepInputs = {};
+    this.qrDataUrl = '';
+    this.view = VIEWS.HOME;
   }
 
   // ─── Login step helpers ─────────────────────────────────────────────────────
@@ -455,23 +397,6 @@ export class TelegramBridgeWidget extends LitElement {
   _stepReady() {
     const fields = this.loginStep?.user_input?.fields ?? [];
     return fields.every(f => (this.stepInputs[f.id] ?? '').trim().length > 0);
-  }
-
-  async _cancelLogin() {
-    if (this.loginProcessId) {
-      try {
-        await fetch(this._u(API.LOGIN_CANCEL(this.loginProcessId)), {
-          method: 'POST',
-          headers: this._authHeaders(),
-        });
-      } catch { /* best-effort cancel */ }
-    }
-    this.loginFlows = null;
-    this.loginProcessId = null;
-    this.loginStep = null;
-    this.stepInputs = {};
-    this.qrDataUrl = '';
-    this.view = VIEWS.HOME;
   }
 
   // ─── Notification ───────────────────────────────────────────────────────────
@@ -567,7 +492,7 @@ export class TelegramBridgeWidget extends LitElement {
           Could not detect your Matrix account automatically.<br>
           Enter your Matrix ID to connect to the bridge.
         </p>
-        <div class="form-group">
+        <div class="form-group full-width">
           <label>Matrix ID</label>
           <input type="text" placeholder="@user:matrix.example.com"
             .value=${this._manualUserId}
@@ -746,7 +671,7 @@ export class TelegramBridgeWidget extends LitElement {
     `;
   }
 
-  // ─── Chats view ──────────────────────────────────────────────────────────────
+  // ─── Contacts view ─────────────────────────────────────────────────────────────
 
   _renderContacts() {
     return html`
@@ -850,647 +775,6 @@ export class TelegramBridgeWidget extends LitElement {
       </div>
     `;
   }
-
-  // ─── Styles ──────────────────────────────────────────────────────────────────
-
-  static styles = css`
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    :host {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: block;
-      min-height: 100vh;
-      background: #f0f4f8;
-      color: #17191c;
-    }
-
-    /* ── Layout ── */
-    .container {
-      max-width: 560px;
-      margin: 0 auto;
-      padding: 20px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: white;
-      border-radius: 14px;
-      padding: 18px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-
-    .header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-icon {
-      font-size: 1.6rem;
-      background: #2AABEE;
-      color: white;
-      border-radius: 10px;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-style: normal;
-      flex-shrink: 0;
-    }
-    .brand-icon svg { width: 22px; height: 22px; }
-
-    h1 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #17191c;
-    }
-
-    .btn-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: #f0f4f8;
-      border: none;
-      border-radius: 8px;
-      padding: 6px 12px 6px 8px;
-      font-size: 0.875rem;
-      color: #525760;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background 0.15s;
-    }
-    .btn-back:hover { background: #e2e8f0; }
-    .btn-back svg { width: 16px; height: 16px; }
-
-    /* ── Status badge ── */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .status-badge.connected    { background: #e8f5f0; color: #03b381; }
-    .status-badge.disconnected { background: #f5f5f5; color: #737780; }
-    .status-badge.checking     { background: #e8f0ff; color: #2B7EDB; }
-    .status-badge.error        { background: #fff0f0; color: #d32f2f; }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: currentColor;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.4; }
-    }
-
-    /* ── Cards ── */
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-
-    .center-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      padding: 40px 24px;
-    }
-
-    /* ── Profile card ── */
-    .profile-card {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: #2AABEE;
-      color: white;
-      font-size: 1.4rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .profile-name {
-      font-weight: 700;
-      font-size: 1.05rem;
-      color: #17191c;
-    }
-
-    .profile-sub {
-      font-size: 0.875rem;
-      color: #737780;
-      margin-top: 2px;
-    }
-
-    /* ── Action grid ── */
-    .action-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
-
-    .action-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 18px 10px;
-      background: white;
-      border: 2px solid #e8edf2;
-      border-radius: 14px;
-      cursor: pointer;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: #17191c;
-      transition: all 0.15s;
-    }
-
-    .action-btn:hover:not(:disabled) {
-      border-color: #2AABEE;
-      background: #f0f9ff;
-      transform: translateY(-2px);
-    }
-
-    .action-btn--danger { color: #d32f2f; }
-    .action-btn--danger:hover:not(:disabled) {
-      border-color: #d32f2f;
-      background: #fff5f5;
-    }
-
-    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .action-icon { display: inline-flex; align-items: center; justify-content: center; }
-    .action-icon svg { width: 26px; height: 26px; }
-
-    /* ── Welcome card ── */
-    .welcome-card {
-      text-align: center;
-      padding: 36px 28px;
-    }
-
-    .welcome-icon {
-      font-size: 3rem;
-      background: #2AABEE;
-      color: white;
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 20px;
-      font-style: normal;
-    }
-    .welcome-icon svg { width: 34px; height: 34px; }
-
-    .welcome-card h2 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .welcome-desc {
-      color: #737780;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-
-    .error-hint {
-      margin-top: 14px;
-      font-size: 0.8rem;
-      color: #d32f2f;
-    }
-
-    /* ── Login wizard ── */
-    .step-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .step-label {
-      font-weight: 700;
-      font-size: 1rem;
-      color: #17191c;
-    }
-
-    .step-dots {
-      display: flex;
-      gap: 6px;
-    }
-
-    .step-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #d1d5db;
-      transition: background 0.2s;
-    }
-
-    .step-dot.active { background: #2AABEE; }
-
-    .step-instructions {
-      font-size: 0.9rem;
-      color: #737780;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    /* ── Flow chooser ── */
-    .flow-list { display: flex; flex-direction: column; gap: 10px; }
-
-    .flow-btn {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      width: 100%;
-      text-align: left;
-      padding: 14px 16px;
-      background: white;
-      border: 2px solid #e8edf2;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .flow-btn:hover:not(:disabled) {
-      border-color: #2AABEE;
-      background: #f0f9ff;
-      transform: translateY(-1px);
-    }
-    .flow-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .flow-icon { display: inline-flex; flex-shrink: 0; color: #2AABEE; }
-    .flow-icon svg { width: 24px; height: 24px; }
-    .flow-text { display: flex; flex-direction: column; gap: 2px; }
-    .flow-name { font-weight: 700; font-size: 0.95rem; color: #17191c; }
-    .flow-desc { font-size: 0.8rem; color: #737780; }
-
-    /* ── QR / display-and-wait ── */
-    .qr-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      padding: 8px 0 4px;
-    }
-    .qr-img {
-      width: 220px;
-      height: 220px;
-      border-radius: 12px;
-      border: 1px solid #e8edf2;
-      background: white;
-    }
-    .qr-fallback {
-      display: block;
-      word-break: break-all;
-      max-width: 100%;
-      padding: 10px 12px;
-    }
-    .qr-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #2B7EDB;
-    }
-
-    /* ── Form ── */
-    .form-group { margin-bottom: 18px; }
-
-    label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.875rem;
-      color: #525760;
-      margin-bottom: 8px;
-    }
-
-    input[type="tel"],
-    input[type="text"],
-    input[type="password"] {
-      width: 100%;
-      padding: 12px 14px;
-      border: 2px solid #e2e8f0;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-family: inherit;
-      background: #fafafa;
-      color: #17191c;
-      transition: all 0.15s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #2AABEE;
-      background: white;
-      box-shadow: 0 0 0 3px rgba(42, 171, 238, 0.12);
-    }
-
-    input:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      background: #f5f5f5;
-    }
-
-    input::placeholder { color: #a0aab4; }
-
-    .code-input {
-      font-size: 1.6rem !important;
-      letter-spacing: 0.5em;
-      text-align: center;
-    }
-
-    .field-hint {
-      font-size: 0.8rem;
-      color: #a0aab4;
-      margin-top: 6px;
-    }
-
-    /* ── Buttons ── */
-    .btn-primary,
-    .btn-secondary {
-      border: none;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      padding: 12px 20px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.15s;
-      font-family: inherit;
-    }
-
-    .btn-primary {
-      background: #2AABEE;
-      color: white;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: #1e96d8;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(42,171,238,0.3);
-    }
-
-    .btn-secondary {
-      background: #f0f4f8;
-      color: #525760;
-    }
-
-    .btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
-
-    .btn-danger {
-      background: #d32f2f;
-      color: white;
-    }
-    .btn-danger:hover:not(:disabled) {
-      background: #b71c1c;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(211,47,47,0.3);
-    }
-
-    /* ── Modal ── */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      z-index: 100;
-      animation: fadeIn 0.15s ease;
-    }
-
-    .modal-card {
-      background: white;
-      border-radius: 14px;
-      padding: 24px;
-      max-width: 380px;
-      width: 100%;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-    }
-
-    .modal-card h2 { margin-bottom: 10px; }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    .modal-actions button { flex: 1; }
-
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
-
-    .full-width { width: 100%; }
-
-    /* ── Section header ── */
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 18px;
-    }
-
-    .section-header h2 { font-size: 1.1rem; font-weight: 700; }
-
-    .btn-icon {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      background: #f0f4f8;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: #525760;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .btn-icon:hover:not(:disabled) { background: #e2e8f0; }
-    .btn-icon svg { width: 15px; height: 15px; }
-
-    /* ── Chat list ── */
-    .chat-list { display: flex; flex-direction: column; gap: 10px; }
-
-    .chat-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border: 1px solid #f0f4f8;
-      border-radius: 10px;
-      transition: background 0.1s;
-    }
-    .chat-item:hover { background: #f8fafc; }
-
-    .chat-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #2AABEE;
-      color: white;
-      font-weight: 700;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .chat-info { flex: 1; min-width: 0; }
-
-    .chat-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .chat-sub {
-      font-size: 0.8rem;
-      color: #737780;
-      margin-top: 2px;
-    }
-
-    .btn-open {
-      padding: 6px 12px;
-      background: #f0f9ff;
-      color: #2AABEE;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: background 0.15s;
-    }
-    .btn-open:hover { background: #dbeeff; }
-
-    /* ── Empty state ── */
-    .empty-state {
-      text-align: center;
-      padding: 32px 0;
-      color: #737780;
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-
-    /* ── Search ── */
-    .search-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .search-row input { flex: 1; }
-
-    .result-card {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px;
-      border: 2px solid #e8f5ff;
-      border-radius: 10px;
-      background: #f8fafc;
-    }
-
-    /* ── Notification ── */
-    .notification {
-      padding: 12px 16px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      animation: slideDown 0.25s ease;
-    }
-
-    .notification.success { background: #e8f5f0; color: #03b381; border: 1px solid #c6eed8; }
-    .notification.error   { background: #fff0f0; color: #d32f2f; border: 1px solid #ffc5c5; }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Spinners ── */
-    .spinner, .spinner-sm, .spinner-lg {
-      border-radius: 50%;
-      border-style: solid;
-      border-color: rgba(255,255,255,0.3);
-      border-top-color: currentColor;
-      animation: spin 0.65s linear infinite;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    .spinner    { width: 16px; height: 16px; border-width: 2px; }
-    .spinner-sm { width: 14px; height: 14px; border-width: 2px; color: #525760; border-color: #d1d5db; border-top-color: #2AABEE; }
-    .spinner-lg { width: 32px; height: 32px; border-width: 3px; color: #2AABEE; border-color: #d1d5db; border-top-color: #2AABEE; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Misc ── */
-    .muted { color: #737780; font-size: 0.9rem; }
-
-    h2 { font-size: 1.1rem; font-weight: 700; color: #17191c; }
-
-    code {
-      background: #f0f4f8;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.875em;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 480px) {
-      .container { padding: 12px; }
-      .action-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-      .action-btn { padding: 14px 6px; font-size: 0.8rem; }
-      .search-row { flex-direction: column; }
-    }
-  `;
 }
 
 customElements.define('telegram-bridge-widget', TelegramBridgeWidget);
