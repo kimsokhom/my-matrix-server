@@ -55,12 +55,21 @@ export const styles = css`
     --shadow-pop:  0 12px 40px rgba(16, 24, 40, 0.22);
     --ring:        0 0 0 3px rgba(42, 171, 238, 0.30);
 
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Inter is loaded in index.html; keep system fonts as a fallback so text
+       never renders blank while the web font downloads. */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: block;
     min-height: 100vh;
     background: var(--c-bg);
     color: var(--c-text);
     line-height: 1.5;
+  }
+
+  /* Form controls do NOT inherit font-family by default — without this the
+     buttons (My Contacts / Find User / Disconnect) and inputs fall back to the
+     browser default (Arial) instead of Inter. */
+  button, input, select, textarea {
+    font-family: inherit;
   }
 
   /* ── Layout ── */
