@@ -15,8 +15,12 @@ export const DEV_MATRIX_USER_ID = import.meta.env.VITE_MATRIX_USER_ID ?? '';
 // Base URL of your own hosted Element Web. Used only when the widget runs in a
 // plain browser tab (not embedded in Element): "Open chat" / "Start DM" then
 // deep-links into YOUR Element instance instead of the generic public matrix.to
-// page. Leave empty to fall back to matrix.to. No trailing slash.
-export const ELEMENT_BASE_URL = import.meta.env.VITE_ELEMENT_BASE_URL ?? '';
+// page. Leave empty to fall back to matrix.to.
+//
+// This can be your gateway/nginx URL (which serves Element Web at "/") so users
+// stay on the single origin they're already logged into. A trailing slash is
+// tolerated — it's stripped here so the "/#/room/<id>" deep link stays clean.
+export const ELEMENT_BASE_URL = (import.meta.env.VITE_ELEMENT_BASE_URL ?? '').replace(/\/+$/, '');
 
 // The screens the widget can show.
 export const VIEWS = {
