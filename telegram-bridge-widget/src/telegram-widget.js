@@ -21,6 +21,7 @@ export class TelegramBridgeWidget extends LitElement {
     stepInputs:     { type: Object },   // { fieldId: value } for the current user_input step
     qrDataUrl:      { type: String },   // rendered QR image for display_and_wait steps
     contacts:       { type: Array },
+    contactFilter:  { type: String },   // client-side filter for the contacts list
     searchQuery:    { type: String },
     searchResults:  { type: Array },
     isLoading:      { type: Boolean },
@@ -41,6 +42,7 @@ export class TelegramBridgeWidget extends LitElement {
     this.stepInputs = {};
     this.qrDataUrl = '';
     this.contacts = [];
+    this.contactFilter = '';
     this.searchQuery = '';
     this.searchResults = [];
     this.isLoading = false;
@@ -305,6 +307,7 @@ export class TelegramBridgeWidget extends LitElement {
   async _fetchContacts() {
     this.isLoading = true;
     this.contacts = [];
+    this.contactFilter = '';
     try {
       const { ok, data } = await this.api.contacts();
       if (!ok) { this._showNotification('Failed to load contacts', 'error'); return; }
@@ -314,6 +317,19 @@ export class TelegramBridgeWidget extends LitElement {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  // Contacts that match the current filter (case-insensitive, matches name and
+  // any identifier like a phone number or @username). Purely client-side — the
+  // full list is already loaded, so filtering is instant with no extra request.
+  get _visibleContacts() {
+    const q = this.contactFilter.trim().toLowerCase();
+    if (!q) return this.contacts;
+    return this.contacts.filter(c => {
+      const name = (c.name ?? c.mxid ?? '').toLowerCase();
+      const ids  = (c.identifiers ?? []).join(' ').toLowerCase();
+      return name.includes(q) || ids.includes(q);
+    });
   }
 
   async _searchUser() {
@@ -701,6 +717,8 @@ export class TelegramBridgeWidget extends LitElement {
   // ─── Contacts view ─────────────────────────────────────────────────────────────
 
   _renderContacts() {
+    const visible = this._visibleContacts;
+    const hasContacts = this.contacts.length > 0;
     return html`
       <div class="card">
 
@@ -712,19 +730,40 @@ export class TelegramBridgeWidget extends LitElement {
           </button>
         </div>
 
+        ${!this.isLoading && hasContacts ? html`
+          <div class="filter-field">
+            <span class="filter-icon">${ICONS.search}</span>
+            <input type="text" placeholder="Filter contacts by name or number…"
+              .value=${this.contactFilter}
+              @input=${e => this.contactFilter = e.target.value}
+              aria-label="Filter contacts" />
+            ${this.contactFilter ? html`
+              <button class="filter-clear" title="Clear filter"
+                @click=${() => this.contactFilter = ''}>&times;</button>
+            ` : ''}
+          </div>
+        ` : ''}
+
         ${this.isLoading ? html`
           <div class="center-card"><span class="spinner-lg"></span></div>
         ` : ''}
 
-        ${!this.isLoading && this.contacts.length === 0 ? html`
+        ${!this.isLoading && !hasContacts ? html`
           <div class="empty-state">
             <p>No contacts found.</p>
             <p class="muted">Your Telegram contacts appear here once the bridge syncs them.</p>
           </div>
         ` : ''}
 
+        ${!this.isLoading && hasContacts && visible.length === 0 ? html`
+          <div class="empty-state">
+            <p>No contacts match “${this.contactFilter}”.</p>
+            <p class="muted">Try a different name or number.</p>
+          </div>
+        ` : ''}
+
         <div class="chat-list">
-          ${this.contacts.map(contact => this._renderContactItem(contact))}
+          ${visible.map(contact => this._renderContactItem(contact))}
         </div>
 
       </div>

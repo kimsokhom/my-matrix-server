@@ -615,6 +615,51 @@ export const styles = css`
     line-height: 1.6;
   }
 
+  /* ── Contacts filter ── */
+  .filter-field {
+    position: relative;
+    margin-bottom: var(--space-4);
+  }
+
+  .filter-field input {
+    width: 100%;
+    /* leave room for the leading search icon and trailing clear button */
+    padding-left: 38px;
+    padding-right: 38px;
+  }
+
+  .filter-icon {
+    position: absolute;
+    left: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    color: var(--c-subtle);
+    pointer-events: none;
+  }
+  .filter-icon svg { width: 18px; height: 18px; }
+
+  .filter-clear {
+    position: absolute;
+    right: var(--space-2);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-pill);
+    color: var(--c-muted);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .filter-clear:hover { background: var(--c-bg); color: var(--c-text); }
+
   /* ── Search ── */
   .search-row {
     display: flex;
