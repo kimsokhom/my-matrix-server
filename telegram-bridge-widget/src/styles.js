@@ -74,6 +74,15 @@ export const styles = css`
     gap: var(--space-3);
   }
 
+  /* The home view stacks several blocks (profile card + action grid) inside
+     <main>, so give <main> the same column gap as the container. Without this
+     the profile card and the action buttons touch with no breathing room. */
+  main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
   /* ── Header ── */
   .header {
     background: var(--c-surface);
