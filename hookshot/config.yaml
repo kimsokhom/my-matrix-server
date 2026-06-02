@@ -89,7 +89,8 @@ gitlab:
       url: "https://gitlab.com"
   webhook:
     secret: "${GITLAB_WEBHOOK_SECRET}"
-    publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/gitlab/webhook"
+    # publicUrl: "https://${HOOKSHOT_PUBLIC_URL}/gitlab/webhook"
+    publicUrl: "https://${SERVER_NAME}/hookshot/gitlab/webhook"
 
 # Uncomment to enable RSS/Atom feed polling
 # feeds:
